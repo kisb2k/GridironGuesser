@@ -1,0 +1,70 @@
+
+{
+  "entities": {
+    "GameSession": {
+      "title": "Game Session",
+      "description": "A live game instance controlled by an admin",
+      "type": "object",
+      "properties": {
+        "adminUid": { "type": "string" },
+        "status": { "type": "string", "enum": ["PREDICTING", "LOCKDOWN", "RESOLVING", "COMPLETED"] },
+        "situation": { "type": "string" },
+        "scoreAway": { "type": "number" },
+        "scoreHome": { "type": "number" },
+        "timeRemaining": { "type": "string" },
+        "currentPlayId": { "type": "string" },
+        "syncOffset": { "type": "number" },
+        "lastResult": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string" },
+            "outcome": { "type": "string" },
+            "description": { "type": "string" },
+            "yards": { "type": "number" }
+          }
+        }
+      },
+      "required": ["adminUid", "status", "situation"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "User statistics and game state",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "points": { "type": "number" },
+        "streak": { "type": "number" },
+        "lastUpdatedPlayId": { "type": "string" }
+      }
+    },
+    "Prediction": {
+      "title": "Prediction",
+      "description": "A user's play prediction",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "playId": { "type": "string" },
+        "playType": { "type": "string" },
+        "outcome": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "auth": {
+    "providers": ["google.com"]
+  },
+  "firestore": {
+    "/gameSessions/{gameId}": {
+      "schema": "GameSession",
+      "description": "Live game state"
+    },
+    "/gameSessions/{gameId}/predictions/{userId}": {
+      "schema": "Prediction",
+      "description": "Predictions for the current play in a session"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Global user stats"
+    }
+  }
+}
