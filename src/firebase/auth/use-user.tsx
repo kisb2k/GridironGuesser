@@ -3,7 +3,9 @@
 
 import { useEffect, useState } from 'react';
 import { useFirestore } from '../provider';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
+import { errorEmitter } from '../error-emitter';
+import { FirestorePermissionError } from '../errors';
 
 export interface AppUser {
   uid: string;
@@ -31,8 +33,6 @@ export function useUser() {
     if (!name.trim() || !firestore) return;
 
     const cleanName = name.trim();
-    // In a real app, you'd use a better way to generate UIDs, 
-    // but for this prototype, we'll hash the name or use a unique string.
     const uid = `u_${cleanName.toLowerCase().replace(/\s+/g, '_')}`;
 
     const newUser: AppUser = {
@@ -40,32 +40,27 @@ export function useUser() {
       displayName: cleanName
     };
 
-    try {
-      const userRef = doc(firestore, "users", uid);
-      const snap = await getDoc(userRef);
-      
-      if (!snap.exists()) {
-        await setDoc(userRef, {
-          displayName: newUser.displayName,
-          points: 0,
-          streak: 0,
-          lastUpdatedPlayId: ""
-        });
-      }
+    const userRef = doc(firestore, "users", uid);
+    const userData = {
+      displayName: newUser.displayName,
+      points: 0,
+      streak: 0,
+      lastUpdatedPlayId: ""
+    };
 
-      localStorage.setItem('gg_app_user', JSON.stringify(newUser));
-      setUser(newUser);
-    } catch (error: any) {
-      // If offline, we still "sign in" locally to allow the app to function
-      // with cached data, but we warn in console.
-      if (error.code === 'unavailable') {
-        console.warn("Firestore unavailable, signing in with local cache.");
-        localStorage.setItem('gg_app_user', JSON.stringify(newUser));
-        setUser(newUser);
-      } else {
-        throw error;
-      }
-    }
+    // Use setDoc with merge instead of getDoc to be more resilient to offline status
+    setDoc(userRef, userData, { merge: true })
+      .catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'write',
+          requestResourceData: userData
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
+
+    localStorage.setItem('gg_app_user', JSON.stringify(newUser));
+    setUser(newUser);
   };
 
   const logout = () => {

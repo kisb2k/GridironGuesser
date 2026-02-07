@@ -8,20 +8,25 @@ import { doc, setDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Plus, Users, ArrowRight } from "lucide-react";
+import { Plus, Users, ArrowRight, Loader2 } from "lucide-react";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export default function LobbyPage() {
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
   const [gameIdInput, setGameIdInput] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
 
-  const createGame = async () => {
-    if (!user || !firestore) return;
+  const createGame = () => {
+    if (!user || !firestore || isCreating) return;
+    
+    setIsCreating(true);
     const newGameId = Math.random().toString(36).substring(2, 8).toUpperCase();
     const gameRef = doc(firestore, "gameSessions", newGameId);
     
-    await setDoc(gameRef, {
+    const gameData = {
       adminUid: user.uid,
       status: "PREDICTING",
       situation: "Waiting for Admin to Start",
@@ -30,6 +35,16 @@ export default function LobbyPage() {
       timeRemaining: "15:00 1ST",
       currentPlayId: "p1",
       syncOffset: 0
+    };
+
+    // Non-blocking write for immediate navigation and robustness
+    setDoc(gameRef, gameData).catch(async (err) => {
+      const permissionError = new FirestorePermissionError({
+        path: gameRef.path,
+        operation: 'create',
+        requestResourceData: gameData
+      });
+      errorEmitter.emit('permission-error', permissionError);
     });
 
     router.push(`/game/${newGameId}`);
@@ -41,12 +56,30 @@ export default function LobbyPage() {
     }
   };
 
+  if (userLoading) {
+    return (
+      <main className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </main>
+    );
+  }
+
+  if (!user) {
+    router.push('/');
+    return null;
+  }
+
   return (
     <main className="min-h-screen bg-background p-6 flex items-center justify-center">
       <div className="w-full max-w-md space-y-6">
-        <h2 className="text-3xl font-black italic tracking-tighter uppercase text-center mb-8">
-          Play <span className="text-primary">Live</span>
-        </h2>
+        <div className="text-center space-y-2 mb-8">
+          <h2 className="text-3xl font-black italic tracking-tighter uppercase">
+            Play <span className="text-primary">Live</span>
+          </h2>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+            Logged in as: <span className="text-primary">{user.displayName}</span>
+          </p>
+        </div>
 
         <Card className="bg-card/50 border-white/5 glow-primary">
           <CardHeader>
@@ -54,9 +87,19 @@ export default function LobbyPage() {
             <CardDescription className="text-xs font-bold">Start a session and share the code with friends.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={createGame} className="w-full h-12 font-black italic">
-              <Plus className="w-5 h-5 mr-2" />
-              CREATE SESSION
+            <Button 
+              onClick={createGame} 
+              disabled={isCreating}
+              className="w-full h-12 font-black italic"
+            >
+              {isCreating ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <Plus className="w-5 h-5 mr-2" />
+                  CREATE SESSION
+                </>
+              )}
             </Button>
           </CardContent>
         </Card>
@@ -80,6 +123,14 @@ export default function LobbyPage() {
             </Button>
           </CardContent>
         </Card>
+
+        <Button 
+          variant="ghost" 
+          onClick={() => router.push('/')}
+          className="w-full text-[10px] font-bold uppercase opacity-50 hover:opacity-100"
+        >
+          Return to Start Screen
+        </Button>
       </div>
     </main>
   );

@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { PlayType, OutcomeType } from "@/lib/types";
-import { ArrowLeft, Send, Lock, Zap, RefreshCw, Trash2 } from "lucide-react";
+import { ArrowLeft, Send, Lock, Zap, RefreshCw, Trash2, Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export default function AdminPage() {
   const { gameId } = useParams();
@@ -36,8 +38,20 @@ export default function AdminPage() {
     }
   }, [game]);
 
-  if (loading) return null;
-  if (game?.adminUid !== user?.uid) return <div className="p-8 text-center uppercase font-black">Unauthorized Access</div>;
+  if (loading) return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <Loader2 className="w-8 h-8 text-primary animate-spin" />
+    </div>
+  );
+
+  if (!game || (game.adminUid !== user?.uid)) return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="text-center p-8 space-y-4">
+        <h1 className="text-xl font-black uppercase italic">Unauthorized Access</h1>
+        <Button onClick={() => router.push(`/game/${gameId}`)}>BACK TO GAME</Button>
+      </div>
+    </div>
+  );
 
   const updateStatus = (status: string) => {
     const update: any = { status };
@@ -49,25 +63,47 @@ export default function AdminPage() {
       update.lastResult = {
         type: lastPlayType,
         outcome: lastOutcome,
-        description: `${lastPlayType} resulted in ${lastOutcome.replace('_', ' ')}`,
+        description: `${lastPlayType} resulted in ${lastOutcome.replace(/_/g, ' ')}`,
         yards: Math.floor(Math.random() * 20)
       };
     }
-    updateDoc(gameRef, update);
+    
+    updateDoc(gameRef, update).catch(async (err) => {
+      const permissionError = new FirestorePermissionError({
+        path: gameRef.path,
+        operation: 'update',
+        requestResourceData: update
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    });
   };
 
   const updateGameInfo = () => {
-    updateDoc(gameRef, {
+    const update = {
       situation,
       scoreAway,
       scoreHome,
       timeRemaining
+    };
+    updateDoc(gameRef, update).catch(async (err) => {
+      const permissionError = new FirestorePermissionError({
+        path: gameRef.path,
+        operation: 'update',
+        requestResourceData: update
+      });
+      errorEmitter.emit('permission-error', permissionError);
     });
   };
 
   const endGame = async () => {
     if (confirm("End this session?")) {
-      await deleteDoc(gameRef);
+      deleteDoc(gameRef).catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+          path: gameRef.path,
+          operation: 'delete'
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
       router.push('/lobby');
     }
   };
