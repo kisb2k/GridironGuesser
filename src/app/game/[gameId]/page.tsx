@@ -37,8 +37,12 @@ export default function GamePage() {
           situation: game.situation, 
           lastResult: game.lastResult?.description 
         }).then(res => {
-          setAudioUrl(res.audioData);
-        }).catch(err => console.error("Announcer Error:", err));
+          if (res && res.audioData) {
+            setAudioUrl(res.audioData);
+          }
+        }).catch(err => {
+          console.warn("Announcer flow failed (expected if local dev or low quota):", err);
+        });
       }
     }, syncOffset * 1000);
 

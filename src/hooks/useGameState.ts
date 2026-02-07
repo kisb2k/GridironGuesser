@@ -83,7 +83,7 @@ export function useGameState(gameId?: string) {
           lastUpdatedPlayId: game.currentPlayId
         });
       } catch (e) {
-        // Silent fail for scoring (handled optimistically or retried on next sync)
+        console.warn("Scoring update failed (likely offline):", e);
       }
     };
 
@@ -100,8 +100,8 @@ export function useGameState(gameId?: string) {
       playType,
       outcome: outcome || 'NONE',
       timestamp: serverTimestamp()
-    }, { merge: true }).catch(() => {
-      // Permission errors handled by global listener
+    }, { merge: true }).catch((err) => {
+      console.warn("Prediction could not be saved to DB:", err);
     });
   };
 

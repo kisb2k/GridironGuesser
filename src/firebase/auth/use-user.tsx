@@ -39,7 +39,8 @@ export function useUser() {
           setUser(null);
         }
         setLoading(false);
-      }).catch(() => {
+      }).catch((err) => {
+        console.warn("User persistence check failed (likely offline or permission):", err);
         setLoading(false);
       });
     } else {
@@ -48,44 +49,55 @@ export function useUser() {
   }, [firestore]);
 
   const login = async (username: string, pass: string) => {
-    if (!firestore) throw new Error("Database not initialized");
+    if (!firestore) throw new Error("Database not initialized. Please check your connection.");
     
     const cleanUsername = username.trim().toLowerCase();
     const userRef = doc(firestore, "users", cleanUsername);
     
-    // Default Admin Seed
+    // Default Admin Seed - Only attempt if it's the specific admin username
     if (cleanUsername === 'admin' && pass === 'password') {
-      const adminSnap = await getDoc(userRef);
-      if (!adminSnap.exists()) {
-        await setDoc(userRef, {
-          displayName: "Official Admin",
-          password: "password",
-          role: "ADMIN",
-          points: 0,
-          streak: 0
-        });
+      try {
+        const adminSnap = await getDoc(userRef);
+        if (!adminSnap.exists()) {
+          await setDoc(userRef, {
+            displayName: "Official Admin",
+            password: "password",
+            role: "ADMIN",
+            points: 0,
+            streak: 0
+          });
+        }
+      } catch (e) {
+        console.warn("Admin seeding skipped due to permissions. This is normal if account already exists or rules are strict.");
       }
     }
 
-    const snap = await getDoc(userRef);
-    if (!snap.exists()) {
-      throw new Error("User not found");
+    try {
+      const snap = await getDoc(userRef);
+      if (!snap.exists()) {
+        throw new Error("User not found. Please register first.");
+      }
+
+      const data = snap.data();
+      if (data.password !== pass) {
+        throw new Error("Invalid password.");
+      }
+
+      const appUser: AppUser = {
+        uid: cleanUsername,
+        username: cleanUsername,
+        displayName: data.displayName || 'Fan',
+        role: data.role || 'USER'
+      };
+
+      localStorage.setItem('gg_user_id', cleanUsername);
+      setUser(appUser);
+    } catch (err: any) {
+      if (err.code === 'permission-denied') {
+        throw new Error("Database access denied. Please ensure your Firebase rules allow reading the users collection.");
+      }
+      throw err;
     }
-
-    const data = snap.data();
-    if (data.password !== pass) {
-      throw new Error("Invalid password");
-    }
-
-    const appUser: AppUser = {
-      uid: cleanUsername,
-      username: cleanUsername,
-      displayName: data.displayName || 'Fan',
-      role: data.role || 'USER'
-    };
-
-    localStorage.setItem('gg_user_id', cleanUsername);
-    setUser(appUser);
   };
 
   const register = async (email: string, pass: string, name: string) => {
@@ -93,30 +105,37 @@ export function useUser() {
     const username = email.trim().toLowerCase();
     const userRef = doc(firestore, "users", username);
     
-    const snap = await getDoc(userRef);
-    if (snap.exists()) {
-      throw new Error("User already exists");
+    try {
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        throw new Error("User already exists. Please login.");
+      }
+
+      const userData = {
+        displayName: name,
+        password: pass,
+        role: "USER",
+        points: 0,
+        streak: 0
+      };
+
+      await setDoc(userRef, userData);
+      
+      const appUser: AppUser = {
+        uid: username,
+        username: username,
+        displayName: name,
+        role: "USER"
+      };
+
+      localStorage.setItem('gg_user_id', username);
+      setUser(appUser);
+    } catch (err: any) {
+      if (err.code === 'permission-denied') {
+        throw new Error("Registration failed: Database permission denied.");
+      }
+      throw err;
     }
-
-    const userData = {
-      displayName: name,
-      password: pass,
-      role: "USER",
-      points: 0,
-      streak: 0
-    };
-
-    await setDoc(userRef, userData);
-    
-    const appUser: AppUser = {
-      uid: username,
-      username: username,
-      displayName: name,
-      role: "USER"
-    };
-
-    localStorage.setItem('gg_user_id', username);
-    setUser(appUser);
   };
 
   const guestLogin = async (name: string) => {
@@ -138,10 +157,7 @@ export function useUser() {
       streak: 0,
       isGuest: true
     }).catch(err => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: userRef.path,
-        operation: 'write'
-      }));
+      console.warn("Guest profile could not be saved to DB, continuing with local session:", err);
     });
 
     localStorage.setItem('gg_user_id', guestId);
