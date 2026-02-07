@@ -1,269 +1,63 @@
+
 {
   "entities": {
     "User": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a user in the Gridiron Guesser application.",
+      "description": "Represents a user profile and their game stats.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the user entity."
-        },
-        "username": {
-          "type": "string",
-          "description": "The user's chosen username."
-        },
-        "email": {
-          "type": "string",
-          "description": "The user's email address.",
-          "format": "email"
-        },
-        "syncOffset": {
-          "type": "number",
-          "description": "The user's preferred sync offset to align with the game feed in seconds."
-        }
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["USER", "ADMIN"] },
+        "points": { "type": "number" },
+        "streak": { "type": "number" },
+        "password": { "type": "string" }
       },
-      "required": [
-        "id",
-        "username",
-        "email"
-      ]
+      "required": ["displayName", "role"]
     },
-    "Game": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Game",
+    "GameSession": {
+      "title": "GameSession",
       "type": "object",
-      "description": "Represents a single game session with a unique identifier, timestamp, and the data feed it uses.",
+      "description": "A live game instance managed by an admin.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the game entity."
-        },
-        "startTime": {
-          "type": "string",
-          "description": "Timestamp indicating when the game started.",
-          "format": "date-time"
-        },
-        "dataFeed": {
-          "type": "string",
-          "description": "The source of the game's live play-by-play data (e.g., Genius Sports, SportsDataIO)."
-        }
-      },
-      "required": [
-        "id",
-        "startTime",
-        "dataFeed"
-      ]
-    },
-    "Play": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Play",
-      "type": "object",
-      "description": "Represents a single play within a game, including the question presented to the user and the actual outcome.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the play entity."
-        },
-        "gameId": {
-          "type": "string",
-          "description": "Reference to Game. (Relationship: Game 1:N Play)"
-        },
-        "question": {
-          "type": "string",
-          "description": "The question presented to the user for this play (e.g., 'Run or Pass?')."
-        },
-        "outcome": {
-          "type": "string",
-          "description": "The actual outcome of the play (e.g., 'Run', 'Pass > 15 yards', 'Touchdown')."
-        }
-      },
-      "required": [
-        "id",
-        "gameId",
-        "question",
-        "outcome"
-      ]
+        "adminUid": { "type": "string" },
+        "status": { "type": "string", "enum": ["PREDICTING", "LOCKDOWN", "RESOLVING", "COMPLETED"] },
+        "situation": { "type": "string" },
+        "scoreAway": { "type": "number" },
+        "scoreHome": { "type": "number" },
+        "timeRemaining": { "type": "string" },
+        "currentPlayId": { "type": "string" },
+        "lastResult": { "type": "object" }
+      }
     },
     "Prediction": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Prediction",
       "type": "object",
-      "description": "Represents a user's prediction for a specific play, including the timestamp and whether it was correct.",
+      "description": "A user's prediction for a specific play in a game session.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the prediction entity."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Prediction)"
-        },
-        "playId": {
-          "type": "string",
-          "description": "Reference to Play. (Relationship: Play 1:N Prediction)"
-        },
-        "prediction": {
-          "type": "string",
-          "description": "The user's prediction for the play."
-        },
-        "timestamp": {
-          "type": "string",
-          "description": "Timestamp indicating when the prediction was made.",
-          "format": "date-time"
-        },
-        "isCorrect": {
-          "type": "boolean",
-          "description": "Indicates whether the user's prediction was correct."
-        },
-        "pointsAwarded": {
-          "type": "number",
-          "description": "Points awarded for the prediction."
-        }
-      },
-      "required": [
-        "id",
-        "userId",
-        "playId",
-        "prediction",
-        "timestamp",
-        "isCorrect"
-      ]
-    },
-    "LeaderboardEntry": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "LeaderboardEntry",
-      "type": "object",
-      "description": "Represents a single entry in the leaderboard, associating a user with their score in a specific game.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the leaderboard entry."
-        },
-        "gameId": {
-          "type": "string",
-          "description": "Reference to Game. (Relationship: Game 1:N LeaderboardEntry)"
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N LeaderboardEntry)"
-        },
-        "score": {
-          "type": "number",
-          "description": "The user's score for this game."
-        },
-        "rank": {
-          "type": "number",
-          "description": "The user's rank in the leaderboard for this game."
-        }
-      },
-      "required": [
-        "id",
-        "gameId",
-        "userId",
-        "score",
-        "rank"
-      ]
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "playId": { "type": "string" },
+        "playType": { "type": "string" },
+        "outcome": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password", "anonymous"]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user profile information. Only the user can read/write their own document.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/games/{gameId}",
-        "definition": {
-          "entityName": "Game",
-          "schema": {
-            "$ref": "#/backend/entities/Game"
-          },
-          "description": "Stores game data. Publicly readable.",
-          "params": [
-            {
-              "name": "gameId",
-              "description": "The unique identifier for the game."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/games/{gameId}/plays/{playId}",
-        "definition": {
-          "entityName": "Play",
-          "schema": {
-            "$ref": "#/backend/entities/Play"
-          },
-          "description": "Stores play data for a specific game.",
-          "params": [
-            {
-              "name": "gameId",
-              "description": "The unique identifier for the game."
-            },
-            {
-              "name": "playId",
-              "description": "The unique identifier for the play."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/predictions/{predictionId}",
-        "definition": {
-          "entityName": "Prediction",
-          "schema": {
-            "$ref": "#/backend/entities/Prediction"
-          },
-          "description": "Stores user predictions for each play.  Only the user can read/write their own predictions.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "predictionId",
-              "description": "The unique identifier for the prediction."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/leaderboard_entries/{leaderboardEntryId}",
-        "definition": {
-          "entityName": "LeaderboardEntry",
-          "schema": {
-            "$ref": "#/backend/entities/LeaderboardEntry"
-          },
-          "description": "Stores leaderboard entries. Includes denormalized 'userId' and 'gameId' for authorization independence.",
-          "params": [
-            {
-              "name": "leaderboardEntryId",
-              "description": "The unique identifier for the leaderboard entry."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The Firestore data structure is designed to optimize for real-time updates, scalability, and secure access control. The structure prioritizes authorization independence, which is crucial for atomic operations and debuggability.\n\n**Authorization Independence:**\n*   The `/users/{userId}/predictions/{predictionId}` path ensures that each prediction is directly associated with a user and does not require accessing parent document data for authorization.\n*   Leaderboard entries, stored in `/leaderboard_entries/{leaderboardEntryId}`, contain denormalized user and game IDs. This allows for direct access and manipulation of leaderboard data without relying on parent-child relationships for authorization.\n\n**Structural Segregation:**\n*   User-specific data (predictions) are stored under their respective user IDs in `/users/{userId}/predictions/{predictionId}`. This structural segregation simplifies security rules and ensures that users can only access their own data.\n*   Global data like games are stored in the `/games/{gameId}` collection, separate from user-specific data. This allows for different security rules to be applied to global vs. user-specific data.\n\n**Access Modeling:**\n*   Private User Data: The `/users/{userId}` collection stores private user information, accessible only by the user themselves.\n*   User-Owned Data: The `/users/{userId}/predictions/{predictionId}` path represents a `User 1:N Prediction` relationship, securely associating predictions with their respective users.\n*   Collaborative Data: While not explicitly collaborative in this design, if collaborative game features were added, a membership map within the game document could be used to manage access control.\n\n**QAPs (Rules are not Filters):**\n*   The data structure supports secure `list` operations. For example, listing predictions is done within the `/users/{userId}/predictions` subcollection, ensuring that only the predictions for a specific user are retrieved.\n*   The segregation of global data (games) and user-specific data (predictions) allows for efficient and secure queries without requiring filtering on the client side.\n\n**Invariants:**\n*   The structure facilitates the enforcement of invariants such as ownership (via the `/users/{userId}/predictions` path) and timestamp consistency.\n"
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles. Owners can read/write."
+    },
+    "/gameSessions/{gameId}": {
+      "schema": { "$ref": "#/entities/GameSession" },
+      "description": "Live game sessions. Public read, admin write."
+    },
+    "/gameSessions/{gameId}/predictions/{predictionId}": {
+      "schema": { "$ref": "#/entities/Prediction" },
+      "description": "Predictions for a specific game. Owners can write, everyone can read."
+    }
   }
 }
