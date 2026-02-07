@@ -10,7 +10,8 @@
         "role": { "type": "string", "enum": ["USER", "ADMIN"] },
         "points": { "type": "number" },
         "streak": { "type": "number" },
-        "password": { "type": "string" }
+        "password": { "type": "string" },
+        "isGuest": { "type": "boolean" }
       },
       "required": ["displayName", "role"]
     },
