@@ -51,7 +51,7 @@
     }
   },
   "auth": {
-    "providers": ["google.com"]
+    "providers": []
   },
   "firestore": {
     "/gameSessions/{gameId}": {

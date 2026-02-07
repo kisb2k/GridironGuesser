@@ -1,35 +1,25 @@
 
 'use client';
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useUser, useFirestore } from "@/firebase";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { useUser } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { LogIn, Trophy, Play, Loader2, User as UserIcon } from "lucide-react";
+import { Trophy, Play, Loader2 } from "lucide-react";
 
 export default function LandingPage() {
-  const { user, loading, signInWithGoogle, signInAsGuest, logout } = useUser();
-  const firestore = useFirestore();
+  const { user, loading, signInWithName, logout } = useUser();
   const router = useRouter();
-  const [guestName, setGuestName] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
-  useEffect(() => {
-    if (user && firestore) {
-      const userRef = doc(firestore, "users", user.uid);
-      getDoc(userRef).then((snap) => {
-        if (!snap.exists()) {
-          setDoc(userRef, {
-            displayName: user.displayName,
-            points: 0,
-            streak: 0,
-            lastUpdatedPlayId: ""
-          });
-        }
-      });
-    }
-  }, [user, firestore]);
+  const handleSignIn = async () => {
+    if (!displayName.trim()) return;
+    setIsSigningIn(true);
+    await signInWithName(displayName);
+    setIsSigningIn(false);
+  };
 
   if (loading) {
     return (
@@ -78,43 +68,29 @@ export default function LandingPage() {
         <div className="w-full max-w-sm space-y-8">
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-muted-foreground text-left block ml-1">Quick Start</label>
+              <label className="text-[10px] font-black uppercase text-muted-foreground text-left block ml-1">Get Started</label>
               <div className="flex gap-2">
                 <Input 
                   placeholder="Enter Display Name"
-                  value={guestName}
-                  onChange={(e) => setGuestName(e.target.value)}
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
                   className="h-14 font-bold text-lg"
+                  disabled={isSigningIn}
                 />
                 <Button 
                   size="lg" 
-                  onClick={() => signInAsGuest(guestName)}
-                  disabled={!guestName.trim()}
+                  onClick={handleSignIn}
+                  disabled={!displayName.trim() || isSigningIn}
                   className="h-14 font-black italic"
                 >
-                  <Play className="w-4 h-4" />
+                  {isSigningIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                 </Button>
               </div>
             </div>
-            
-            <div className="relative py-4">
-              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/5"></span></div>
-              <div className="relative flex justify-center text-[10px] uppercase font-black"><span className="bg-background px-4 text-muted-foreground">Or Use Permanent Account</span></div>
-            </div>
-
-            <Button 
-              variant="outline"
-              size="lg" 
-              onClick={() => signInWithGoogle()}
-              className="h-14 text-sm font-black italic w-full border-white/10 hover:bg-white/5"
-            >
-              <LogIn className="w-4 h-4 mr-2" />
-              SIGN IN WITH GOOGLE
-            </Button>
           </div>
           
           <p className="text-[10px] text-muted-foreground max-w-xs mx-auto">
-            Guest accounts are saved locally on this device. Sign in with Google to sync stats across all platforms.
+            Stats are saved to the cloud under your display name.
           </p>
         </div>
       )}
