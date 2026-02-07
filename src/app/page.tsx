@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useUser, useFirestore } from "@/firebase";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
-import { LogIn, Trophy, Play } from "lucide-react";
+import { LogIn, Trophy, Play, Loader2 } from "lucide-react";
 
 export default function LandingPage() {
   const { user, loading, signInWithGoogle } = useUser();
@@ -29,7 +29,13 @@ export default function LandingPage() {
     }
   }, [user, firestore]);
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
@@ -54,19 +60,32 @@ export default function LandingPage() {
             <Play className="w-6 h-6 mr-2 fill-current" />
             ENTER LOBBY
           </Button>
-          <p className="text-xs font-bold text-muted-foreground uppercase">
-            Signed in as {user.displayName}
-          </p>
+          <div className="flex flex-col gap-1">
+            <p className="text-xs font-bold text-muted-foreground uppercase">
+              Signed in as {user.displayName}
+            </p>
+            <button 
+              onClick={() => router.push('/lobby')}
+              className="text-[10px] text-primary hover:underline uppercase font-bold"
+            >
+              Go to Game Lobby
+            </button>
+          </div>
         </div>
       ) : (
-        <Button 
-          size="lg" 
-          onClick={() => signInWithGoogle()}
-          className="h-16 text-xl font-black italic"
-        >
-          <LogIn className="w-6 h-6 mr-2" />
-          SIGN IN TO PLAY
-        </Button>
+        <div className="space-y-4">
+          <Button 
+            size="lg" 
+            onClick={() => signInWithGoogle()}
+            className="h-16 text-xl font-black italic w-full max-w-sm"
+          >
+            <LogIn className="w-6 h-6 mr-2" />
+            SIGN IN WITH GOOGLE
+          </Button>
+          <p className="text-[10px] text-muted-foreground max-w-xs mx-auto">
+            By signing in, you agree to our Terms of Service and Privacy Policy.
+          </p>
+        </div>
       )}
     </main>
   );

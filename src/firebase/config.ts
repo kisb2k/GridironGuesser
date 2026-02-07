@@ -1,6 +1,6 @@
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyDummyKey",
+  apiKey: "AIzaSy" + "ActualKeyFromConsole", // This will be replaced by your project's real key
   authDomain: "gridiron-guesser.firebaseapp.com",
   projectId: "gridiron-guesser",
   storageBucket: "gridiron-guesser.appspot.com",

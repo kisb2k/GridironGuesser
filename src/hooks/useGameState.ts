@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { GameState, UserStats, PlayType, OutcomeType } from '@/lib/types';
 import { useFirestore, useDoc, useUser } from '@/firebase';
-import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -68,29 +68,34 @@ export function useGameState(gameId?: string) {
 
   // Handle scoring logic when game moves to RESOLVING
   useEffect(() => {
-    if (!game || !user || !stats.prediction || game.playState !== 'RESOLVING' || !game.lastResult) return;
+    if (!game || !user || !stats.prediction || game.playState !== 'RESOLVING' || !game.lastResult || !userProfileRef) return;
     
-    // Prevent double counting for the same play
-    if (profileData?.lastUpdatedPlayId === game.currentPlayId) return;
+    const resolveScoring = async () => {
+      // Re-fetch to get latest play ID to avoid race conditions
+      const snap = await getDoc(userProfileRef);
+      const currentProfile = snap.data();
+      
+      if (currentProfile?.lastUpdatedPlayId === game.currentPlayId) return;
 
-    const isCorrect = stats.prediction.playType === game.lastResult.type;
-    const newStreak = isCorrect ? stats.streak + 1 : 0;
-    const pointsGained = isCorrect ? 10 * (newStreak + 1) : 0;
+      const isCorrect = stats.prediction?.playType === game.lastResult?.type;
+      const newStreak = isCorrect ? (currentProfile?.streak || 0) + 1 : 0;
+      const pointsGained = isCorrect ? 10 * (newStreak) : 0;
 
-    if (userProfileRef) {
-      updateDoc(userProfileRef, {
-        points: (profileData?.points || 0) + pointsGained,
+      await updateDoc(userProfileRef, {
+        points: (currentProfile?.points || 0) + pointsGained,
         streak: newStreak,
         lastUpdatedPlayId: game.currentPlayId
       }).catch(async (e) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: userProfileRef.path,
           operation: 'update',
-          requestResourceData: { points: (profileData?.points || 0) + pointsGained }
+          requestResourceData: { points: (currentProfile?.points || 0) + pointsGained }
         }));
       });
-    }
-  }, [game?.playState, game?.currentPlayId, user, stats.prediction, game?.lastResult, profileData?.lastUpdatedPlayId, userProfileRef]);
+    };
+
+    resolveScoring();
+  }, [game?.playState, game?.currentPlayId, user, !!stats.prediction, !!game?.lastResult, userProfileRef]);
 
   const makePrediction = (playType: PlayType, outcome?: OutcomeType) => {
     if (!game || game.playState !== 'PREDICTING' || !predictionRef) return;
