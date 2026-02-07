@@ -1,17 +1,19 @@
 
 'use client';
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, useFirestore } from "@/firebase";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
-import { LogIn, Trophy, Play, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { LogIn, Trophy, Play, Loader2, User as UserIcon } from "lucide-react";
 
 export default function LandingPage() {
-  const { user, loading, signInWithGoogle } = useUser();
+  const { user, loading, signInWithGoogle, signInAsGuest, logout } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
+  const [guestName, setGuestName] = useState("");
 
   useEffect(() => {
     if (user && firestore) {
@@ -60,30 +62,59 @@ export default function LandingPage() {
             <Play className="w-6 h-6 mr-2 fill-current" />
             ENTER LOBBY
           </Button>
-          <div className="flex flex-col gap-1">
-            <p className="text-xs font-bold text-muted-foreground uppercase">
-              Signed in as {user.displayName}
+          <div className="flex flex-col gap-2 p-4 bg-card/30 rounded-xl border border-white/5">
+            <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">
+              Playing as: <span className="text-primary">{user.displayName}</span>
             </p>
             <button 
-              onClick={() => router.push('/lobby')}
-              className="text-[10px] text-primary hover:underline uppercase font-bold"
+              onClick={() => logout()}
+              className="text-[10px] text-destructive hover:underline uppercase font-bold"
             >
-              Go to Game Lobby
+              Sign Out / Switch Account
             </button>
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
-          <Button 
-            size="lg" 
-            onClick={() => signInWithGoogle()}
-            className="h-16 text-xl font-black italic w-full max-w-sm"
-          >
-            <LogIn className="w-6 h-6 mr-2" />
-            SIGN IN WITH GOOGLE
-          </Button>
+        <div className="w-full max-w-sm space-y-8">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-muted-foreground text-left block ml-1">Quick Start</label>
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Enter Display Name"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  className="h-14 font-bold text-lg"
+                />
+                <Button 
+                  size="lg" 
+                  onClick={() => signInAsGuest(guestName)}
+                  disabled={!guestName.trim()}
+                  className="h-14 font-black italic"
+                >
+                  <Play className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            
+            <div className="relative py-4">
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/5"></span></div>
+              <div className="relative flex justify-center text-[10px] uppercase font-black"><span className="bg-background px-4 text-muted-foreground">Or Use Permanent Account</span></div>
+            </div>
+
+            <Button 
+              variant="outline"
+              size="lg" 
+              onClick={() => signInWithGoogle()}
+              className="h-14 text-sm font-black italic w-full border-white/10 hover:bg-white/5"
+            >
+              <LogIn className="w-4 h-4 mr-2" />
+              SIGN IN WITH GOOGLE
+            </Button>
+          </div>
+          
           <p className="text-[10px] text-muted-foreground max-w-xs mx-auto">
-            By signing in, you agree to our Terms of Service and Privacy Policy.
+            Guest accounts are saved locally on this device. Sign in with Google to sync stats across all platforms.
           </p>
         </div>
       )}

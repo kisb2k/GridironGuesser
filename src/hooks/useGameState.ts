@@ -5,8 +5,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { GameState, UserStats, PlayType, OutcomeType } from '@/lib/types';
 import { useFirestore, useDoc, useUser } from '@/firebase';
 import { doc, setDoc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 
 export function useGameState(gameId?: string) {
   const firestore = useFirestore();
@@ -57,7 +55,7 @@ export function useGameState(gameId?: string) {
   const stats: UserStats = useMemo(() => ({
     points: profileData?.points || 0,
     streak: profileData?.streak || 0,
-    rank: 1, // Logic would require a global collection group query
+    rank: 1, 
     totalPlayers: 1,
     prediction: predictionData?.playId === game?.currentPlayId ? {
       playType: predictionData.playType,
@@ -72,14 +70,14 @@ export function useGameState(gameId?: string) {
       const snap = await getDoc(userProfileRef);
       const currentProfile = snap.data();
       
-      if (currentProfile?.lastUpdatedPlayId === game.currentPlayId) return;
+      if (!currentProfile || currentProfile.lastUpdatedPlayId === game.currentPlayId) return;
 
       const isCorrect = stats.prediction?.playType === game.lastResult?.type;
-      const newStreak = isCorrect ? (currentProfile?.streak || 0) + 1 : 0;
+      const newStreak = isCorrect ? (currentProfile.streak || 0) + 1 : 0;
       const pointsGained = isCorrect ? 10 * newStreak : 0;
 
-      await updateDoc(userProfileRef, {
-        points: (currentProfile?.points || 0) + pointsGained,
+      updateDoc(userProfileRef, {
+        points: (currentProfile.points || 0) + pointsGained,
         streak: newStreak,
         lastUpdatedPlayId: game.currentPlayId
       }).catch((e) => {
@@ -88,19 +86,19 @@ export function useGameState(gameId?: string) {
     };
 
     resolveScoring();
-  }, [game?.playState, game?.currentPlayId, user, !!stats.prediction, !!game?.lastResult, userProfileRef]);
+  }, [game?.playState, game?.currentPlayId, user?.uid, !!stats.prediction, !!game?.lastResult]);
 
   const makePrediction = (playType: PlayType, outcome?: OutcomeType) => {
-    if (!game || game.playState !== 'PREDICTING' || !predictionRef) return;
+    if (!game || game.playState !== 'PREDICTING' || !predictionRef || !user) return;
     
     setDoc(predictionRef, {
-      userId: user?.uid,
-      username: user?.displayName || 'Anonymous',
+      userId: user.uid,
+      username: user.displayName || 'Fan',
       playId: game.currentPlayId,
       playType,
       outcome: outcome || 'NONE',
       timestamp: serverTimestamp()
-    });
+    }, { merge: true });
   };
 
   const updateSyncOffset = (val: number) => {
