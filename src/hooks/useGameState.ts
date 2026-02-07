@@ -57,7 +57,7 @@ export function useGameState(gameId?: string) {
     streak: profileData?.streak || 0,
     rank: 1, 
     totalPlayers: 1,
-    prediction: predictionData?.playId === game?.currentPlayId ? {
+    prediction: (predictionData?.playId === game?.currentPlayId) ? {
       playType: predictionData.playType,
       outcome: predictionData.outcome
     } : undefined
@@ -67,22 +67,24 @@ export function useGameState(gameId?: string) {
     if (!game || !user || !stats.prediction || game.playState !== 'RESOLVING' || !game.lastResult || !userProfileRef) return;
     
     const resolveScoring = async () => {
-      const snap = await getDoc(userProfileRef);
-      const currentProfile = snap.data();
-      
-      if (!currentProfile || currentProfile.lastUpdatedPlayId === game.currentPlayId) return;
+      try {
+        const snap = await getDoc(userProfileRef);
+        const currentProfile = snap.data();
+        
+        if (!currentProfile || currentProfile.lastUpdatedPlayId === game.currentPlayId) return;
 
-      const isCorrect = stats.prediction?.playType === game.lastResult?.type;
-      const newStreak = isCorrect ? (currentProfile.streak || 0) + 1 : 0;
-      const pointsGained = isCorrect ? 10 * newStreak : 0;
+        const isCorrect = stats.prediction?.playType === game.lastResult?.type;
+        const newStreak = isCorrect ? (currentProfile.streak || 0) + 1 : 0;
+        const pointsGained = isCorrect ? 10 * (newStreak || 1) : 0;
 
-      updateDoc(userProfileRef, {
-        points: (currentProfile.points || 0) + pointsGained,
-        streak: newStreak,
-        lastUpdatedPlayId: game.currentPlayId
-      }).catch((e) => {
-        console.error("Scoring Error", e);
-      });
+        updateDoc(userProfileRef, {
+          points: (currentProfile.points || 0) + pointsGained,
+          streak: newStreak,
+          lastUpdatedPlayId: game.currentPlayId
+        });
+      } catch (e) {
+        console.error("Scoring Resolution Error (possibly offline):", e);
+      }
     };
 
     resolveScoring();
@@ -98,7 +100,9 @@ export function useGameState(gameId?: string) {
       playType,
       outcome: outcome || 'NONE',
       timestamp: serverTimestamp()
-    }, { merge: true });
+    }, { merge: true }).catch(err => {
+      console.error("Prediction failed (possibly offline):", err);
+    });
   };
 
   const updateSyncOffset = (val: number) => {

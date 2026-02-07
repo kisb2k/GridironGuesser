@@ -30,41 +30,42 @@ export function useUser() {
   const signInWithName = async (name: string) => {
     if (!name.trim() || !firestore) return;
 
-    // Check if we have an existing UID for this name in local storage
-    // or generate a new one for this "session"
-    let uid = '';
-    const savedUser = localStorage.getItem('gg_app_user');
-    if (savedUser) {
-      const parsed = JSON.parse(savedUser);
-      if (parsed.displayName === name.trim()) {
-        uid = parsed.uid;
-      }
-    }
-
-    if (!uid) {
-      uid = `u_${Math.random().toString(36).substring(2, 9)}`;
-    }
+    const cleanName = name.trim();
+    // In a real app, you'd use a better way to generate UIDs, 
+    // but for this prototype, we'll hash the name or use a unique string.
+    const uid = `u_${cleanName.toLowerCase().replace(/\s+/g, '_')}`;
 
     const newUser: AppUser = {
       uid,
-      displayName: name.trim()
+      displayName: cleanName
     };
 
-    // Save/Update in Firestore (our "Database for user logins")
-    const userRef = doc(firestore, "users", uid);
-    const snap = await getDoc(userRef);
-    
-    if (!snap.exists()) {
-      await setDoc(userRef, {
-        displayName: newUser.displayName,
-        points: 0,
-        streak: 0,
-        lastUpdatedPlayId: ""
-      });
-    }
+    try {
+      const userRef = doc(firestore, "users", uid);
+      const snap = await getDoc(userRef);
+      
+      if (!snap.exists()) {
+        await setDoc(userRef, {
+          displayName: newUser.displayName,
+          points: 0,
+          streak: 0,
+          lastUpdatedPlayId: ""
+        });
+      }
 
-    localStorage.setItem('gg_app_user', JSON.stringify(newUser));
-    setUser(newUser);
+      localStorage.setItem('gg_app_user', JSON.stringify(newUser));
+      setUser(newUser);
+    } catch (error: any) {
+      // If offline, we still "sign in" locally to allow the app to function
+      // with cached data, but we warn in console.
+      if (error.code === 'unavailable') {
+        console.warn("Firestore unavailable, signing in with local cache.");
+        localStorage.setItem('gg_app_user', JSON.stringify(newUser));
+        setUser(newUser);
+      } else {
+        throw error;
+      }
+    }
   };
 
   const logout = () => {
