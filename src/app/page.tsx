@@ -6,18 +6,19 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trophy, Play, Loader2 } from "lucide-react";
+import { Trophy, Play, Loader2, User, ShieldCheck } from "lucide-react";
+import Link from "next/link";
 
 export default function LandingPage() {
-  const { user, loading, signInWithName, logout } = useUser();
+  const { user, loading, guestLogin, logout } = useUser();
   const router = useRouter();
   const [displayName, setDisplayName] = useState("");
   const [isSigningIn, setIsSigningIn] = useState(false);
 
-  const handleSignIn = async () => {
+  const handleGuestEntry = async () => {
     if (!displayName.trim()) return;
     setIsSigningIn(true);
-    await signInWithName(displayName);
+    await guestLogin(displayName);
     setIsSigningIn(false);
   };
 
@@ -39,7 +40,7 @@ export default function LandingPage() {
         Gridiron <span className="text-primary">Guesser</span>
       </h1>
       <p className="text-muted-foreground font-bold mb-12 max-w-md text-lg">
-        The real-time NFL prediction game. Join a group, sync with the broadcast, and prove you're the ultimate fan.
+        The real-time NFL prediction game. Join a group, sync with the broadcast, and win big.
       </p>
 
       {user ? (
@@ -60,7 +61,7 @@ export default function LandingPage() {
               onClick={() => logout()}
               className="text-[10px] text-destructive hover:underline uppercase font-bold"
             >
-              Sign Out / Switch Account
+              Log Out
             </button>
           </div>
         </div>
@@ -68,10 +69,10 @@ export default function LandingPage() {
         <div className="w-full max-w-sm space-y-8">
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-muted-foreground text-left block ml-1">Get Started</label>
+              <label className="text-[10px] font-black uppercase text-muted-foreground text-left block ml-1">Quick Play (Guest)</label>
               <div className="flex gap-2">
                 <Input 
-                  placeholder="Enter Display Name"
+                  placeholder="Enter Name"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   className="h-14 font-bold text-lg"
@@ -79,7 +80,7 @@ export default function LandingPage() {
                 />
                 <Button 
                   size="lg" 
-                  onClick={handleSignIn}
+                  onClick={handleGuestEntry}
                   disabled={!displayName.trim() || isSigningIn}
                   className="h-14 font-black italic"
                 >
@@ -88,9 +89,22 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Link href="/login" className="block">
+              <Button variant="outline" className="w-full h-12 font-black uppercase text-[10px]">
+                <User className="w-4 h-4 mr-2" /> Player Login
+              </Button>
+            </Link>
+            <Link href="/admin/login" className="block">
+              <Button variant="outline" className="w-full h-12 font-black uppercase text-[10px] border-primary/30 text-primary">
+                <ShieldCheck className="w-4 h-4 mr-2" /> Admin Login
+              </Button>
+            </Link>
+          </div>
           
           <p className="text-[10px] text-muted-foreground max-w-xs mx-auto">
-            Stats are saved to the cloud under your display name.
+            Log in to save your lifetime stats and streaks.
           </p>
         </div>
       )}

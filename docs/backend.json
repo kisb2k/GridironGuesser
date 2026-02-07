@@ -34,7 +34,8 @@
         "displayName": { "type": "string" },
         "points": { "type": "number" },
         "streak": { "type": "number" },
-        "lastUpdatedPlayId": { "type": "string" }
+        "lastUpdatedPlayId": { "type": "string" },
+        "role": { "type": "string", "enum": ["USER", "ADMIN"] }
       }
     },
     "Prediction": {
@@ -51,7 +52,7 @@
     }
   },
   "auth": {
-    "providers": []
+    "providers": ["password"]
   },
   "firestore": {
     "/gameSessions/{gameId}": {
