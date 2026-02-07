@@ -2,138 +2,135 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useFirestore, useAuth } from '../provider';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { 
-  onAuthStateChanged, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
-  signOut,
-  User as FirebaseUser
-} from 'firebase/auth';
+import { useFirestore } from '../provider';
+import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { errorEmitter } from '../error-emitter';
 import { FirestorePermissionError } from '../errors';
 
 export interface AppUser {
   uid: string;
   displayName: string;
-  email?: string;
   role?: 'USER' | 'ADMIN';
+  username: string;
 }
 
 export function useUser() {
-  const auth = useAuth();
   const firestore = useFirestore();
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!auth || !firestore) return;
+    if (!firestore) return;
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const userRef = doc(firestore, "users", firebaseUser.uid);
-        try {
-          const snap = await getDoc(userRef);
-          if (snap.exists()) {
-            const data = snap.data();
-            setUser({
-              uid: firebaseUser.uid,
-              displayName: data.displayName || 'Fan',
-              email: firebaseUser.email || undefined,
-              role: data.role || 'USER'
-            });
-          } else {
-            // Profile missing in Firestore, create a default one
-            const defaultData = {
-              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Fan',
-              role: firebaseUser.email === 'admin@game.com' ? 'ADMIN' : 'USER',
-              points: 0,
-              streak: 0
-            };
-            await setDoc(userRef, defaultData);
-            setUser({
-              uid: firebaseUser.uid,
-              displayName: defaultData.displayName,
-              email: firebaseUser.email || undefined,
-              role: defaultData.role as any
-            });
-          }
-        } catch (e) {
-          console.error("Profile Fetch Error:", e);
+    const savedUserId = localStorage.getItem('gg_user_id');
+    if (savedUserId) {
+      const userRef = doc(firestore, "users", savedUserId);
+      getDoc(userRef).then((snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
           setUser({
-            uid: firebaseUser.uid,
-            displayName: firebaseUser.displayName || 'Fan',
-            email: firebaseUser.email || undefined,
-            role: 'USER'
+            uid: snap.id,
+            username: snap.id,
+            displayName: data.displayName || 'Fan',
+            role: data.role || 'USER'
           });
-        }
-      } else {
-        const savedGuest = localStorage.getItem('gg_guest_user');
-        if (savedGuest) {
-          setUser(JSON.parse(savedGuest));
         } else {
+          localStorage.removeItem('gg_user_id');
           setUser(null);
         }
-      }
+        setLoading(false);
+      }).catch(() => {
+        setLoading(false);
+      });
+    } else {
       setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [auth, firestore]);
-
-  const login = async (email: string, pass: string) => {
-    if (!auth || !firestore) throw new Error("Firebase services not available");
-    
-    // Normalize 'admin' username to email
-    const targetEmail = email.trim().toLowerCase() === 'admin' ? 'admin@game.com' : email.trim();
-
-    try {
-      await signInWithEmailAndPassword(auth, targetEmail, pass);
-    } catch (err: any) {
-      // Auto-seed admin if it's the requested default and doesn't exist
-      if (targetEmail === 'admin@game.com' && pass === 'password' && (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential')) {
-        try {
-          const cred = await createUserWithEmailAndPassword(auth, targetEmail, pass);
-          await setDoc(doc(firestore, "users", cred.user.uid), {
-            displayName: "Official Admin",
-            role: "ADMIN",
-            points: 0,
-            streak: 0
-          });
-          return; 
-        } catch (createErr: any) {
-          // If creation fails (e.g. email in use), throw the original error or the new one
-          if (createErr.code === 'auth/email-already-in-use') throw err;
-          throw createErr;
-        }
-      }
-      throw err;
     }
+  }, [firestore]);
+
+  const login = async (username: string, pass: string) => {
+    if (!firestore) throw new Error("Database not initialized");
+    
+    const cleanUsername = username.trim().toLowerCase();
+    const userRef = doc(firestore, "users", cleanUsername);
+    
+    // Default Admin Seed
+    if (cleanUsername === 'admin' && pass === 'password') {
+      const adminSnap = await getDoc(userRef);
+      if (!adminSnap.exists()) {
+        await setDoc(userRef, {
+          displayName: "Official Admin",
+          password: "password",
+          role: "ADMIN",
+          points: 0,
+          streak: 0
+        });
+      }
+    }
+
+    const snap = await getDoc(userRef);
+    if (!snap.exists()) {
+      throw new Error("User not found");
+    }
+
+    const data = snap.data();
+    if (data.password !== pass) {
+      throw new Error("Invalid password");
+    }
+
+    const appUser: AppUser = {
+      uid: cleanUsername,
+      username: cleanUsername,
+      displayName: data.displayName || 'Fan',
+      role: data.role || 'USER'
+    };
+
+    localStorage.setItem('gg_user_id', cleanUsername);
+    setUser(appUser);
   };
 
   const register = async (email: string, pass: string, name: string) => {
-    if (!auth || !firestore) return;
-    const cred = await createUserWithEmailAndPassword(auth, email.trim(), pass);
-    const userRef = doc(firestore, "users", cred.user.uid);
-    await setDoc(userRef, {
+    if (!firestore) return;
+    const username = email.trim().toLowerCase();
+    const userRef = doc(firestore, "users", username);
+    
+    const snap = await getDoc(userRef);
+    if (snap.exists()) {
+      throw new Error("User already exists");
+    }
+
+    const userData = {
       displayName: name,
+      password: pass,
       role: "USER",
       points: 0,
       streak: 0
-    });
+    };
+
+    await setDoc(userRef, userData);
+    
+    const appUser: AppUser = {
+      uid: username,
+      username: username,
+      displayName: name,
+      role: "USER"
+    };
+
+    localStorage.setItem('gg_user_id', username);
+    setUser(appUser);
   };
 
   const guestLogin = async (name: string) => {
     if (!name.trim() || !firestore) return;
     const cleanName = name.trim();
-    const guestUser: AppUser = {
-      uid: `guest_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+    const guestId = `guest_${Date.now()}`;
+    const appUser: AppUser = {
+      uid: guestId,
+      username: guestId,
       displayName: cleanName,
       role: 'USER'
     };
     
-    const userRef = doc(firestore, "users", guestUser.uid);
+    const userRef = doc(firestore, "users", guestId);
     setDoc(userRef, {
       displayName: cleanName,
       role: "USER",
@@ -147,13 +144,12 @@ export function useUser() {
       }));
     });
 
-    localStorage.setItem('gg_guest_user', JSON.stringify(guestUser));
-    setUser(guestUser);
+    localStorage.setItem('gg_user_id', guestId);
+    setUser(appUser);
   };
 
   const logout = async () => {
-    if (auth) await signOut(auth);
-    localStorage.removeItem('gg_guest_user');
+    localStorage.removeItem('gg_user_id');
     setUser(null);
   };
 

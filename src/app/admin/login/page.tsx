@@ -23,27 +23,17 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(username.trim(), password);
-      // Success - useUser hook will update state and we can navigate
+      await login(username, password);
       toast({
         title: "Access Granted",
-        description: "Authenticated successfully. Entering Command Center..."
+        description: "Entering Command Center..."
       });
       router.push('/lobby');
     } catch (err: any) {
-      console.error("Admin Login Error:", err.code, err.message);
-      let errorMsg = "Invalid credentials. Authorized personnel only.";
-      
-      if (err.code === 'auth/configuration-not-found') {
-        errorMsg = "Authentication service is not enabled in Firebase Console.";
-      } else if (err.code === 'auth/network-request-failed') {
-        errorMsg = "Network error. Please check your connection.";
-      }
-
       toast({
         variant: "destructive",
         title: "Access Denied",
-        description: errorMsg
+        description: err.message || "Invalid credentials. Authorized personnel only."
       });
     } finally {
       setLoading(false);
