@@ -58,16 +58,19 @@ export function useGameState(gameId?: string) {
   const stats: UserStats = useMemo(() => ({
     points: profileData?.points || 0,
     streak: profileData?.streak || 0,
-    rank: 1, 
-    totalPlayers: 1000,
+    rank: 1, // Mocked for now, usually derived from a group query
+    totalPlayers: 100,
     prediction: predictionData?.playId === game?.currentPlayId ? {
       playType: predictionData.playType,
       outcome: predictionData.outcome
     } : undefined
   }), [profileData, predictionData, game?.currentPlayId]);
 
+  // Handle scoring logic when game moves to RESOLVING
   useEffect(() => {
     if (!game || !user || !stats.prediction || game.playState !== 'RESOLVING' || !game.lastResult) return;
+    
+    // Prevent double counting for the same play
     if (profileData?.lastUpdatedPlayId === game.currentPlayId) return;
 
     const isCorrect = stats.prediction.playType === game.lastResult.type;

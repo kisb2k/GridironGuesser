@@ -1,7 +1,8 @@
-"use client"
+
+'use client';
 
 import { UserStats, GameState } from "@/lib/types";
-import { Trophy, Flame, Users } from "lucide-react";
+import { Trophy, Flame } from "lucide-react";
 
 export function StatsBar({ stats, game }: { stats: UserStats, game: GameState }) {
   return (
@@ -17,12 +18,12 @@ export function StatsBar({ stats, game }: { stats: UserStats, game: GameState })
       <div className="flex flex-col items-center bg-black/40 px-6 py-2 rounded-xl border border-white/5">
         <div className="flex items-center gap-4">
           <div className="text-center">
-            <span className="block text-[10px] text-muted-foreground font-bold">PHI</span>
+            <span className="block text-[10px] text-muted-foreground font-bold">AWAY</span>
             <span className="text-xl font-black">{game.score.away}</span>
           </div>
           <div className="w-px h-8 bg-white/10" />
           <div className="text-center">
-            <span className="block text-[10px] text-muted-foreground font-bold">KC</span>
+            <span className="block text-[10px] text-muted-foreground font-bold">HOME</span>
             <span className="text-xl font-black">{game.score.home}</span>
           </div>
         </div>
@@ -42,7 +43,7 @@ export function StatsBar({ stats, game }: { stats: UserStats, game: GameState })
             <Trophy className="w-4 h-4" />
             <span className="text-sm font-bold">#{stats.rank.toLocaleString()}</span>
           </div>
-          <span className="text-[10px] text-muted-foreground">/ {Math.round(stats.totalPlayers / 1000)}K</span>
+          <span className="text-[10px] text-muted-foreground">RANK</span>
         </div>
       </div>
     </div>

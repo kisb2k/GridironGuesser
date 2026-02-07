@@ -1,5 +1,5 @@
 
-"use client"
+'use client';
 
 import { useParams, useRouter } from "next/navigation";
 import { useGameState } from "@/hooks/useGameState";
@@ -8,19 +8,19 @@ import { StatsBar } from "@/components/game/StatsBar";
 import { PredictionCard } from "@/components/game/PredictionCard";
 import { Leaderboard } from "@/components/game/Leaderboard";
 import { SyncControl } from "@/components/game/SyncControl";
-import { Play, AlertCircle, Settings, ArrowLeft } from "lucide-react";
+import { Play, AlertCircle, Settings, ArrowLeft, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 
-export default function LiveGamePage() {
+export default function GamePage() {
   const { gameId } = useParams();
   const router = useRouter();
   const { user } = useUser();
   const { game, stats, makePrediction, loading, syncOffset, updateSyncOffset } = useGameState(gameId as string);
   const [delayedPlayState, setDelayedPlayState] = useState<'PREDICTING' | 'LOCKDOWN' | 'RESOLVING' | 'COMPLETED' | null>(null);
 
-  // Implement Sync Offset Logic
+  // Sync Offset Logic: Delay visual updates based on user preference
   useEffect(() => {
     if (!game) return;
     
@@ -136,7 +136,10 @@ export default function LiveGamePage() {
       {/* Mobile Footer Interaction */}
       <footer className="lg:hidden fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-xl border-t border-white/5 p-4 z-50">
         <div className="flex items-center justify-around gap-4 max-w-lg mx-auto">
-          <span className="text-[10px] font-black uppercase text-primary">Group: {gameId}</span>
+          <div className="flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-primary" />
+            <span className="text-[10px] font-black uppercase text-primary">Group: {gameId}</span>
+          </div>
           {isAdmin && (
             <Button size="sm" variant="outline" className="text-[10px]" onClick={() => router.push(`/admin/${gameId}`)}>ADMIN</Button>
           )}
