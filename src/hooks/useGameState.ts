@@ -13,7 +13,6 @@ export function useGameState(gameId?: string) {
   const { user } = useUser();
   const [localSyncOffset, setLocalSyncOffset] = useState(0);
 
-  // Load user's local sync preference from storage
   useEffect(() => {
     const saved = localStorage.getItem('gg_sync_offset');
     if (saved) setLocalSyncOffset(parseInt(saved));
@@ -58,20 +57,18 @@ export function useGameState(gameId?: string) {
   const stats: UserStats = useMemo(() => ({
     points: profileData?.points || 0,
     streak: profileData?.streak || 0,
-    rank: 1, // Mocked for now, usually derived from a group query
-    totalPlayers: 100,
+    rank: 1, // Logic would require a global collection group query
+    totalPlayers: 1,
     prediction: predictionData?.playId === game?.currentPlayId ? {
       playType: predictionData.playType,
       outcome: predictionData.outcome
     } : undefined
   }), [profileData, predictionData, game?.currentPlayId]);
 
-  // Handle scoring logic when game moves to RESOLVING
   useEffect(() => {
     if (!game || !user || !stats.prediction || game.playState !== 'RESOLVING' || !game.lastResult || !userProfileRef) return;
     
     const resolveScoring = async () => {
-      // Re-fetch to get latest play ID to avoid race conditions
       const snap = await getDoc(userProfileRef);
       const currentProfile = snap.data();
       
@@ -79,18 +76,14 @@ export function useGameState(gameId?: string) {
 
       const isCorrect = stats.prediction?.playType === game.lastResult?.type;
       const newStreak = isCorrect ? (currentProfile?.streak || 0) + 1 : 0;
-      const pointsGained = isCorrect ? 10 * (newStreak) : 0;
+      const pointsGained = isCorrect ? 10 * newStreak : 0;
 
       await updateDoc(userProfileRef, {
         points: (currentProfile?.points || 0) + pointsGained,
         streak: newStreak,
         lastUpdatedPlayId: game.currentPlayId
-      }).catch(async (e) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: userProfileRef.path,
-          operation: 'update',
-          requestResourceData: { points: (currentProfile?.points || 0) + pointsGained }
-        }));
+      }).catch((e) => {
+        console.error("Scoring Error", e);
       });
     };
 
@@ -107,12 +100,6 @@ export function useGameState(gameId?: string) {
       playType,
       outcome: outcome || 'NONE',
       timestamp: serverTimestamp()
-    }).catch(async (e) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: predictionRef.path,
-        operation: 'write',
-        requestResourceData: { playType, outcome }
-      }));
     });
   };
 

@@ -8,10 +8,11 @@ import { StatsBar } from "@/components/game/StatsBar";
 import { PredictionCard } from "@/components/game/PredictionCard";
 import { Leaderboard } from "@/components/game/Leaderboard";
 import { SyncControl } from "@/components/game/SyncControl";
-import { Play, AlertCircle, Settings, ArrowLeft, Trophy } from "lucide-react";
+import { Play, AlertCircle, Settings, ArrowLeft, Trophy, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { announcerVoice } from "@/ai/flows/announcer-flow";
 
 export default function GamePage() {
   const { gameId } = useParams();
@@ -19,17 +20,39 @@ export default function GamePage() {
   const { user } = useUser();
   const { game, stats, makePrediction, loading, syncOffset, updateSyncOffset } = useGameState(gameId as string);
   const [delayedPlayState, setDelayedPlayState] = useState<'PREDICTING' | 'LOCKDOWN' | 'RESOLVING' | 'COMPLETED' | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const lastAnnouncedId = useRef<string>("");
 
-  // Sync Offset Logic: Delay visual updates based on user preference
   useEffect(() => {
     if (!game) return;
     
     const timeout = setTimeout(() => {
       setDelayedPlayState(game.playState);
+      
+      // AI Announcer logic: Announce new situations
+      if (game.currentPlayId !== lastAnnouncedId.current && game.playState === 'PREDICTING') {
+        lastAnnouncedId.current = game.currentPlayId;
+        announcerVoice({ 
+          situation: game.situation, 
+          lastResult: game.lastResult?.description 
+        }).then(res => {
+          setAudioUrl(res.audioData);
+        }).catch(err => console.error("Announcer Error:", err));
+      }
     }, syncOffset * 1000);
 
     return () => clearTimeout(timeout);
-  }, [game?.playState, game?.currentPlayId, syncOffset]);
+  }, [game?.playState, game?.currentPlayId, syncOffset, game?.situation]);
+
+  useEffect(() => {
+    if (audioUrl && audioRef.current) {
+      audioRef.current.play().catch(() => {
+        // Autoplay might be blocked until user interaction
+        console.log("Audio autoplay blocked - waiting for interaction");
+      });
+    }
+  }, [audioUrl]);
 
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
@@ -39,7 +62,7 @@ export default function GamePage() {
 
   if (!game) return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
-      <h1 className="text-2xl font-black mb-4">GAME NOT FOUND</h1>
+      <h1 className="text-2xl font-black mb-4 uppercase">Game Not Found</h1>
       <Button onClick={() => router.push('/lobby')}>BACK TO LOBBY</Button>
     </div>
   );
@@ -51,8 +74,9 @@ export default function GamePage() {
     <main className="min-h-screen bg-background text-foreground flex flex-col">
       <StatsBar stats={stats} game={activeGameState} />
       
+      {audioUrl && <audio ref={audioRef} src={audioUrl} className="hidden" />}
+
       <div className="flex-1 flex flex-col lg:flex-row gap-6 p-4 lg:p-8 max-w-[1600px] mx-auto w-full">
-        {/* Left Sidebar */}
         <aside className="hidden lg:flex flex-col gap-6 w-80 shrink-0">
           <div className="bg-card/30 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
             <Button variant="ghost" size="sm" onClick={() => router.push('/lobby')} className="text-[10px] font-black uppercase">
@@ -76,16 +100,15 @@ export default function GamePage() {
 
           <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4">
              <div className="flex items-center gap-2 mb-2">
-                <AlertCircle className="w-4 h-4 text-primary" />
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-primary">Live Tip</h3>
+                <Volume2 className="w-4 h-4 text-primary" />
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-primary">Audio Feed</h3>
              </div>
              <p className="text-xs font-bold leading-relaxed">
-               Group Activity is synced. Correct picks help your ranking in this room!
+               The AI Stadium Announcer is synced to your broadcast delay.
              </p>
           </div>
         </aside>
 
-        {/* Center - Main Gameplay */}
         <div className="flex-1 flex flex-col gap-6 overflow-y-auto pb-24 lg:pb-0">
           <PredictionCard 
             game={activeGameState} 
@@ -127,13 +150,11 @@ export default function GamePage() {
           </div>
         </div>
 
-        {/* Right Sidebar - Leaderboard */}
         <aside className="hidden lg:block w-96 shrink-0">
           <Leaderboard currentUserRank={stats.rank} />
         </aside>
       </div>
 
-      {/* Mobile Footer Interaction */}
       <footer className="lg:hidden fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-xl border-t border-white/5 p-4 z-50">
         <div className="flex items-center justify-around gap-4 max-w-lg mx-auto">
           <div className="flex items-center gap-2">
