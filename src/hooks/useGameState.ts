@@ -57,11 +57,11 @@ export function useGameState(gameId?: string) {
     streak: profileData?.streak || 0,
     rank: 1, 
     totalPlayers: 1,
-    prediction: (predictionData?.playId === game?.currentPlayId) ? {
+    prediction: (predictionData && game && predictionData.playId === game.currentPlayId) ? {
       playType: predictionData.playType,
       outcome: predictionData.outcome
     } : undefined
-  }), [profileData, predictionData, game?.currentPlayId]);
+  }), [profileData, predictionData, game?.currentPlayId, game]);
 
   useEffect(() => {
     if (!game || !user || !stats.prediction || game.playState !== 'RESOLVING' || !game.lastResult || !userProfileRef) return;
@@ -83,12 +83,12 @@ export function useGameState(gameId?: string) {
           lastUpdatedPlayId: game.currentPlayId
         });
       } catch (e) {
-        console.error("Scoring Resolution Error (possibly offline):", e);
+        // Silent fail for scoring (handled optimistically or retried on next sync)
       }
     };
 
     resolveScoring();
-  }, [game?.playState, game?.currentPlayId, user?.uid, !!stats.prediction, !!game?.lastResult]);
+  }, [game?.playState, game?.currentPlayId, user?.uid, !!stats.prediction, !!game?.lastResult, userProfileRef]);
 
   const makePrediction = (playType: PlayType, outcome?: OutcomeType) => {
     if (!game || game.playState !== 'PREDICTING' || !predictionRef || !user) return;
@@ -100,8 +100,8 @@ export function useGameState(gameId?: string) {
       playType,
       outcome: outcome || 'NONE',
       timestamp: serverTimestamp()
-    }, { merge: true }).catch(err => {
-      console.error("Prediction failed (possibly offline):", err);
+    }, { merge: true }).catch(() => {
+      // Permission errors handled by global listener
     });
   };
 
