@@ -23,9 +23,8 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      // Map 'admin' username to internal admin email for Firebase Auth
-      const email = username === 'admin' ? 'admin@game.com' : username;
-      await login(email, password);
+      // Explicitly pass 'admin' or full email to the login function
+      await login(username.trim(), password);
       router.push('/lobby');
     } catch (err: any) {
       toast({
