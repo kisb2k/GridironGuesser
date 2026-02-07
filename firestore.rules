@@ -1,0 +1,113 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * GRIDIRON GUESSER SECURITY RULES
+     *
+     * CORE PHILOSOPHY:
+     * This ruleset implements a strict user-ownership model designed for a real-time sports prediction app. 
+     * It prioritizes authorization independence, ensuring that security checks for user data (like 
+     * predictions) do not require expensive cross-document lookups.
+     *
+     * DATA STRUCTURE:
+     * - /users/{userId}: Private user profiles and configuration.
+     * - /users/{userId}/predictions/{predictionId}: User-specific game predictions, nested for automatic ownership.
+     * - /games/{gameId}: Publicly readable game metadata and schedules.
+     * - /games/{gameId}/plays/{playId}: Publicly readable live play-by-play data.
+     * - /leaderboard_entries/{leaderboardEntryId}: Top-level collection for global rankings, using denormalized IDs.
+     *
+     * KEY DECISIONS:
+     * - Structural Segregation: User-owned data is nested under the user's path to simplify 'list' operations.
+     * - Public Read/Private Write: Game and play data is accessible to all, but strictly read-only for clients.
+     * - Relational Integrity: On creation of linked data (like predictions), rules enforce that the 
+     *   internal 'userId' field matches the path and the authenticated user.
+     * - Prototyping Flexibility: Schema validation (types, optional fields) is bypassed to allow rapid 
+     *   iteration, while identity-based authorization remains strictly enforced.
+     */
+
+    // --- Helper Functions ---
+
+    /** @description Checks if the request is from an authenticated user. */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** @description Checks if the authenticated user's ID matches the provided ID. */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /** @description Checks if the user owns the existing document for updates or deletes. */
+    function isExistingOwner(ownerId) {
+      return isSignedIn() && resource != null && request.auth.uid == ownerId;
+    }
+
+    // --- Collection Rules ---
+
+    /**
+     * @description Rules for user profile documents. Access restricted to the owner.
+     * @path /users/{userId}
+     * @allow (get) If the user is requesting their own profile.
+     * @deny (list) If a user attempts to browse all user profiles.
+     * @principle Restricts access to a user's own data tree and enforces identity consistency.
+     */
+    match /users/{userId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update, delete: if isExistingOwner(userId);
+
+      /**
+       * @description Rules for user predictions. Only the owner can manage their own predictions.
+       * @path /users/{userId}/predictions/{predictionId}
+       * @allow (create) If the authenticated user matches the path and provides their own UID in the data.
+       * @deny (update) If the user attempts to change the 'userId' field to another user.
+       * @principle Path-based ownership combined with relational integrity enforcement.
+       */
+      match /predictions/{predictionId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.userId == request.auth.uid;
+        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+        allow delete: if isExistingOwner(userId);
+      }
+    }
+
+    /**
+     * @description Rules for game documents. Publicly readable, system-managed writes.
+     * @path /games/{gameId}
+     * @allow (get) Any user can view game details to participate.
+     * @deny (write) Any client-side attempt to modify game schedules or metadata.
+     * @principle Public Read with Owner-Only (Admin) Writes.
+     */
+    match /games/{gameId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
+
+      /**
+       * @description Rules for live plays within a game. Publicly readable.
+       * @path /games/{gameId}/plays/{playId}
+       * @allow (list) Users can fetch the list of plays for the game they are watching.
+       * @deny (create) Clients attempting to inject fake play data.
+       * @principle Secure hierarchy: subcollections inherit the read-only nature of the parent game.
+       */
+      match /plays/{playId} {
+        allow get, list: if true;
+        allow create, update, delete: if false;
+      }
+    }
+
+    /**
+     * @description Rules for leaderboard entries. Publicly readable, owner-authorized writes.
+     * @path /leaderboard_entries/{leaderboardEntryId}
+     * @allow (list) Users viewing the global rankings.
+     * @deny (update) A user attempting to modify another user's score or rank.
+     * @principle Denormalization for authorization: allows direct score updates without traversing user paths.
+     */
+    match /leaderboard_entries/{leaderboardEntryId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isExistingOwner(resource.data.userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(resource.data.userId);
+    }
+  }
+}

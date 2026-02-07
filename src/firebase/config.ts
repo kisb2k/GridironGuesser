@@ -1,9 +1,8 @@
-
 export const firebaseConfig = {
-  apiKey: "AIzaSyCS3f6Mm6w4ZLdm_a6UwZaijyEuwSJk9EY",
-  authDomain: "guesstheplay.firebaseapp.com",
-  projectId: "guesstheplay",
-  storageBucket: "guesstheplay.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef123456"
+  "projectId": "studio-4358397460-91f60",
+  "appId": "1:726536054151:web:269aadcf8e02ae60d11f22",
+  "apiKey": "AIzaSyA4_BUelxv142bVJszwh10nFEWm4p7j3Uo",
+  "authDomain": "studio-4358397460-91f60.firebaseapp.com",
+  "measurementId": "",
+  "messagingSenderId": "726536054151"
 };
