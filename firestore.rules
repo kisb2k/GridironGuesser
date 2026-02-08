@@ -11,5 +11,13 @@ service cloud.firestore {
     match /{document=**} {
       allow read, write: if true;
     }
+
+    // Explicitly matching the predictions subcollection for extra clarity to the rules engine
+    // and to ensure list operations are permitted even when auth is null.
+    match /gameSessions/{gameId}/predictions/{predictionId} {
+      allow read, write: if true;
+    }
+    
+    // Deployment trigger: 1716552000000
   }
 }
