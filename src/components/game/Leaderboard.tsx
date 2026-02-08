@@ -6,7 +6,6 @@ import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy, limit, where } from "firebase/firestore";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Trophy, Star, Clock, Zap } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
 interface LeaderboardProps {
@@ -21,6 +20,8 @@ export function Leaderboard({ currentUserRank, currentPlayId }: LeaderboardProps
   // Query for Recent Activity (Global history)
   const recentQuery = useMemoFirebase(() => {
     if (!firestore || !gameId) return null;
+    // Note: If this fails with permission error, ensure the rules allow listing.
+    // Also, if the index is missing, a link will be provided in the browser console.
     return query(
       collection(firestore, 'gameSessions', gameId as string, 'predictions'),
       orderBy('timestamp', 'desc'),
@@ -42,18 +43,18 @@ export function Leaderboard({ currentUserRank, currentPlayId }: LeaderboardProps
   const { data: currentPlayActivity } = useCollection<any>(currentPlayQuery);
 
   const formatTimestamp = (ts: any) => {
-    if (!ts) return '';
+    if (!ts) return 'just now';
     try {
       const date = ts.toDate ? ts.toDate() : new Date(ts);
       return format(date, 'HH:mm:ss');
     } catch (e) {
-      return '';
+      return 'just now';
     }
   };
 
   return (
     <div className="flex flex-col gap-6 w-full">
-      {/* Current Play Activity - Blank at start of new play */}
+      {/* Current Play Activity */}
       <div className="w-full bg-primary/5 border border-primary/20 rounded-2xl p-4 flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-black flex items-center gap-2 text-primary">
@@ -98,16 +99,16 @@ export function Leaderboard({ currentUserRank, currentPlayId }: LeaderboardProps
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-black flex items-center gap-2">
             <Trophy className="w-4 h-4 text-primary" />
-            Recent Global Activity
+            Global Activity Feed
           </h3>
         </div>
 
         <ScrollArea className="h-64">
           <div className="space-y-2 pr-4">
-            {recentActivity && recentActivity.length === 0 ? (
+            {!recentActivity || recentActivity.length === 0 ? (
               <div className="text-center py-8 opacity-50 text-[10px] font-bold uppercase">No history yet</div>
             ) : (
-              recentActivity?.map((activity) => (
+              recentActivity.map((activity) => (
                 <div 
                   key={activity.id} 
                   className="flex items-center justify-between p-3 rounded-lg border transition-all bg-white/5 border-transparent"
