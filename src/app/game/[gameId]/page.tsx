@@ -150,12 +150,12 @@ export default function GamePage() {
           )}
 
           <div className="lg:hidden">
-            <Leaderboard currentUserRank={stats.rank} />
+            <Leaderboard currentUserRank={stats.rank} currentPlayId={game.currentPlayId} />
           </div>
         </div>
 
         <aside className="hidden lg:block w-96 shrink-0">
-          <Leaderboard currentUserRank={stats.rank} />
+          <Leaderboard currentUserRank={stats.rank} currentPlayId={game.currentPlayId} />
         </aside>
       </div>
 
