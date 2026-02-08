@@ -3,23 +3,29 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Global access for prototype - allow read/write to all collections
-    // This resolves the "Missing or insufficient permissions" for list operations
+    // REDEPLOYMENT TRIGGER: Rule update for subcollection listing permissions.
     
-    match /users/{userId} {
-      allow read, write: if true;
-    }
-
+    // Explicitly allow access to the game sessions and all their sub-data (predictions, etc.)
+    // This ensures that the 'list' method works even for unauthenticated users (auth == null).
     match /gameSessions/{gameId} {
       allow read, write: if true;
       
-      // Explicitly match subcollections to ensure "list" and "get" are allowed
       match /predictions/{predictionId} {
+        allow read, write: if true;
+      }
+      
+      // Recursive match for any other nested data
+      match /{allSubcollections=**} {
         allow read, write: if true;
       }
     }
 
-    // Fallback for any other paths
+    // Explicitly allow access to user profiles
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    // Catch-all global access for the prototype
     match /{document=**} {
       allow read, write: if true;
     }
