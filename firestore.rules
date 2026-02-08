@@ -3,21 +3,24 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // ULTIMATE PROTOTYPE PERMISSIONS:
-    // This allows anyone (authenticated or not) to read and write to any document.
-    // This is necessary to resolve the persistent "Missing or insufficient permissions" 
-    // errors for guests and unauthenticated leaderboard listing.
+    // ALLOW-ALL PROTOTYPE RULES
+    // This provides unrestricted access to all collections and subcollections.
+    // Necessary for the prototype to function for guest users without complex auth requirements.
     
     match /{document=**} {
       allow read, write: if true;
     }
 
-    // Explicitly matching the predictions subcollection for extra clarity to the rules engine
-    // and to ensure list operations are permitted even when auth is null.
+    // Explicitly matching subcollections to ensure the 'list' method is permitted
+    // for queries used in the Leaderboard and activity feeds.
     match /gameSessions/{gameId}/predictions/{predictionId} {
       allow read, write: if true;
     }
     
-    // Deployment trigger: 1716552000000
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+    
+    // Forced deployment trigger: 1740417645000
   }
 }
