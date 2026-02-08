@@ -1,9 +1,9 @@
 
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { GameState, UserStats, PlayType, OutcomeType } from '@/lib/types';
-import { useFirestore, useDoc, useUser } from '@/firebase';
+import { useFirestore, useDoc, useUser, useMemoFirebase } from '@/firebase';
 import { doc, setDoc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 
 export function useGameState(gameId?: string) {
@@ -16,25 +16,25 @@ export function useGameState(gameId?: string) {
     if (saved) setLocalSyncOffset(parseInt(saved));
   }, []);
 
-  const gameRef = useMemo(() => 
+  const gameRef = useMemoFirebase(() => 
     firestore && gameId ? doc(firestore, 'gameSessions', gameId) : null
   , [firestore, gameId]);
 
   const { data: gameData, loading: gameLoading } = useDoc<any>(gameRef);
   
-  const userProfileRef = useMemo(() => 
+  const userProfileRef = useMemoFirebase(() => 
     firestore && user ? doc(firestore, 'users', user.uid) : null
   , [firestore, user]);
   
   const { data: profileData } = useDoc<any>(userProfileRef);
 
-  const predictionRef = useMemo(() => 
+  const predictionRef = useMemoFirebase(() => 
     firestore && gameId && user ? doc(firestore, 'gameSessions', gameId, 'predictions', user.uid) : null
   , [firestore, gameId, user]);
   
   const { data: predictionData } = useDoc<any>(predictionRef);
 
-  const game: GameState | null = useMemo(() => {
+  const game: GameState | null = useMemoFirebase(() => {
     if (!gameData) return null;
     return {
       id: gameId,
@@ -52,7 +52,7 @@ export function useGameState(gameId?: string) {
     };
   }, [gameData, gameId]);
 
-  const stats: UserStats = useMemo(() => ({
+  const stats: UserStats = useMemoFirebase(() => ({
     points: profileData?.points || 0,
     streak: profileData?.streak || 0,
     rank: 1, 

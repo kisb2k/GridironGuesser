@@ -2,18 +2,17 @@
 "use client"
 
 import { useParams } from "next/navigation";
-import { useFirestore, useCollection } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy, limit } from "firebase/firestore";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Trophy, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useMemo } from "react";
 
 export function Leaderboard({ currentUserRank }: { currentUserRank: number }) {
   const { gameId } = useParams();
   const firestore = useFirestore();
 
-  const predictionsQuery = useMemo(() => {
+  const predictionsQuery = useMemoFirebase(() => {
     if (!firestore || !gameId) return null;
     return query(
       collection(firestore, 'gameSessions', gameId as string, 'predictions'),
@@ -36,10 +35,10 @@ export function Leaderboard({ currentUserRank }: { currentUserRank: number }) {
 
       <ScrollArea className="h-64">
         <div className="space-y-2 pr-4">
-          {recentActivity.length === 0 ? (
+          {recentActivity && recentActivity.length === 0 ? (
             <div className="text-center py-8 opacity-50 text-[10px] font-bold uppercase">Waiting for snaps...</div>
           ) : (
-            recentActivity.map((activity, idx) => (
+            recentActivity?.map((activity, idx) => (
               <div 
                 key={activity.id} 
                 className={cn(

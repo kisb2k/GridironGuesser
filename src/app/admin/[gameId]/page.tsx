@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useFirestore, useDoc, useUser } from "@/firebase";
+import { useFirestore, useDoc, useUser, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,11 @@ export default function AdminPage() {
   const router = useRouter();
   const firestore = useFirestore();
   const { user } = useUser();
-  const gameRef = doc(firestore!, 'gameSessions', gameId as string);
+  
+  const gameRef = useMemoFirebase(() => 
+    firestore && gameId ? doc(firestore, 'gameSessions', gameId as string) : null
+  , [firestore, gameId]);
+
   const { data: game, loading } = useDoc<any>(gameRef);
 
   const [situation, setSituation] = useState("");
@@ -54,6 +58,7 @@ export default function AdminPage() {
   );
 
   const updateStatus = (status: string) => {
+    if (!gameRef) return;
     const update: any = { status };
     if (status === 'PREDICTING') {
       update.currentPlayId = `p_${Date.now()}`;
@@ -79,6 +84,7 @@ export default function AdminPage() {
   };
 
   const updateGameInfo = () => {
+    if (!gameRef) return;
     const update = {
       situation,
       scoreAway,
@@ -96,6 +102,7 @@ export default function AdminPage() {
   };
 
   const endGame = async () => {
+    if (!gameRef) return;
     if (confirm("End this session?")) {
       deleteDoc(gameRef).catch(async (err) => {
         const permissionError = new FirestorePermissionError({
@@ -163,8 +170,9 @@ export default function AdminPage() {
             <CardContent className="space-y-4">
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase opacity-50">Play Type</label>
+                 <span className="sr-only">Play Type Selection</span>
                  <Select value={lastPlayType} onValueChange={(v) => setLastPlayType(v as PlayType)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger aria-label="Play Type"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="RUN">RUN</SelectItem>
                       <SelectItem value="PASS">PASS</SelectItem>
@@ -175,8 +183,9 @@ export default function AdminPage() {
                </div>
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase opacity-50">Outcome</label>
+                 <span className="sr-only">Outcome Selection</span>
                  <Select value={lastOutcome} onValueChange={(v) => setLastOutcome(v as OutcomeType)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger aria-label="Outcome"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="NONE">NORMAL GAIN</SelectItem>
                       <SelectItem value="TD">TOUCHDOWN</SelectItem>
