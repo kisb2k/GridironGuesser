@@ -3,20 +3,16 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // GLOBAL PERMISSIVE RULES FOR PROTOTYPING
-    // This allows any user (authenticated or guest) to perform any operation.
-    // This is necessary to resolve "Missing or insufficient permissions" errors on list/get operations.
+    // GLOBALLY PERMISSIVE RULES FOR PROTOTYPING
+    // This allows any user (authenticated or anonymous) to perform any operation.
+    // It specifically resolves "Missing or insufficient permissions" on list/get operations
+    // for collections and subcollections used in the app.
     
     match /{document=**} {
       allow read, write: if true;
     }
 
-    // Explicitly allow list operations on the predictions subcollection for guests.
-    // This is a redundant safety measure to ensure queries on this path are never blocked.
-    match /gameSessions/{gameId}/predictions/{predictionId} {
-      allow get, list, create, update, delete: if true;
-    }
-    
-    // Forced deployment trigger: 1740420000000
+    // Forced deployment trigger to ensure rules are refreshed on the backend.
+    // Timestamp: 1740422400000
   }
 }
