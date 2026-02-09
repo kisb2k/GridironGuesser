@@ -9,10 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { PlayType, OutcomeType } from "@/lib/types";
-import { ArrowLeft, Send, Lock, Zap, Trash2, Loader2, Play, Square, RefreshCcw, Activity } from "lucide-react";
+import { ArrowLeft, Send, Lock, Zap, Trash2, Loader2, Play, RefreshCcw, Activity } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { cn } from "@/lib/utils";
 
 export default function AdminPage() {
   const { gameId } = useParams();
@@ -188,6 +189,7 @@ export default function AdminPage() {
             <CardContent className="space-y-4">
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase opacity-50">Play Type</label>
+                 <span className="text-[10px] font-black text-muted-foreground ml-2">REQUIRED FOR RESOLVE</span>
                  <Select value={lastPlayType} onValueChange={(v) => setLastPlayType(v as PlayType)}>
                     <SelectTrigger className="bg-black/20 border-white/10 h-12 font-bold"><SelectValue /></SelectTrigger>
                     <SelectContent>
