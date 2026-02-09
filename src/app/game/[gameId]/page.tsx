@@ -5,12 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { useGameState } from "@/hooks/useGameState";
 import { useUser } from "@/firebase";
 import { StatsBar } from "@/components/game/StatsBar";
-import { PredictionCard } from "@/components/game/PredictionCard";
-import { Leaderboard } from "@/components/game/Leaderboard";
 import { SyncControl } from "@/components/game/SyncControl";
-import { Play, AlertCircle, Settings, ArrowLeft, Trophy, Volume2 } from "lucide-react";
+import { Settings, ArrowLeft, Volume2, Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { announcerVoice } from "@/ai/flows/announcer-flow";
 
@@ -18,7 +15,7 @@ export default function GamePage() {
   const { gameId } = useParams();
   const router = useRouter();
   const { user } = useUser();
-  const { game, stats, makePrediction, loading, syncOffset, updateSyncOffset } = useGameState(gameId as string);
+  const { game, stats, loading, syncOffset, updateSyncOffset } = useGameState(gameId as string);
   const [delayedPlayState, setDelayedPlayState] = useState<'PREDICTING' | 'LOCKDOWN' | 'RESOLVING' | 'COMPLETED' | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -30,7 +27,6 @@ export default function GamePage() {
     const timeout = setTimeout(() => {
       setDelayedPlayState(game.playState);
       
-      // AI Announcer logic: Announce new situations
       if (game.currentPlayId !== lastAnnouncedId.current && game.playState === 'PREDICTING') {
         lastAnnouncedId.current = game.currentPlayId;
         announcerVoice({ 
@@ -41,7 +37,7 @@ export default function GamePage() {
             setAudioUrl(res.audioData);
           }
         }).catch(err => {
-          console.warn("Announcer flow failed (expected if local dev or low quota):", err);
+          console.warn("Announcer flow failed:", err);
         });
       }
     }, syncOffset * 1000);
@@ -52,21 +48,25 @@ export default function GamePage() {
   useEffect(() => {
     if (audioUrl && audioRef.current) {
       audioRef.current.play().catch(() => {
-        // Autoplay might be blocked until user interaction
-        console.log("Audio autoplay blocked - waiting for interaction");
+        console.log("Audio autoplay blocked");
       });
     }
   }, [audioUrl]);
 
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <span className="text-primary font-black animate-pulse">SYNCING WITH BROADCAST...</span>
+      <div className="text-center space-y-4">
+        <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto" />
+        <span className="text-primary font-black block uppercase tracking-tighter">Syncing with Gridiron...</span>
+      </div>
     </div>
   );
 
   if (!game) return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
-      <h1 className="text-2xl font-black mb-4 uppercase">Game Not Found</h1>
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
+      <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
+      <h1 className="text-2xl font-black mb-2 uppercase">Game Session Not Found</h1>
+      <p className="text-muted-foreground mb-8 text-sm">The ID "{gameId}" does not exist or has ended.</p>
       <Button onClick={() => router.push('/lobby')}>BACK TO LOBBY</Button>
     </div>
   );
@@ -105,71 +105,28 @@ export default function GamePage() {
           <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4">
              <div className="flex items-center gap-2 mb-2">
                 <Volume2 className="w-4 h-4 text-primary" />
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-primary">Audio Feed</h3>
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-primary">Live Audio</h3>
              </div>
              <p className="text-xs font-bold leading-relaxed">
-               The AI Stadium Announcer is synced to your broadcast delay.
+               Announcer is synced to your delay.
              </p>
           </div>
         </aside>
 
-        <div className="flex-1 flex flex-col gap-6 overflow-y-auto pb-24 lg:pb-0">
-          <PredictionCard 
-            game={activeGameState} 
-            stats={stats} 
-            onPredict={makePrediction} 
-          />
-
-          {activeGameState.playState === 'RESOLVING' && activeGameState.lastResult && (
-            <div className="max-w-lg mx-auto w-full animate-in slide-in-from-bottom-4 duration-500">
-              <div className={cn(
-                "p-4 rounded-xl border flex items-center justify-between shadow-xl",
-                stats.prediction?.playType === activeGameState.lastResult.type 
-                  ? "bg-secondary/20 border-secondary/50 text-secondary glow-secondary" 
-                  : "bg-destructive/10 border-destructive/30 text-destructive"
-              )}>
-                <div className="flex items-center gap-3">
-                   <div className="w-10 h-10 rounded-full bg-black/20 flex items-center justify-center shrink-0">
-                      <Play className="w-5 h-5 fill-current" />
-                   </div>
-                   <div>
-                     <span className="block text-xs font-black uppercase tracking-widest">
-                       {stats.prediction?.playType === activeGameState.lastResult.type ? "BOOM! CORRECT" : "PLAY MISSED"}
-                     </span>
-                     <p className="text-[10px] font-bold opacity-80">{activeGameState.lastResult.description}</p>
-                   </div>
-                </div>
-                <div className="text-right">
-                   <span className="text-lg font-black italic">
-                     {stats.prediction?.playType === activeGameState.lastResult.type ? `+${10 * (stats.streak + 1)}` : "0"}
-                   </span>
-                   <span className="block text-[8px] font-bold">PTS</span>
-                </div>
-              </div>
+        <div className="flex-1 flex flex-col items-center justify-center gap-6">
+          <div className="bg-card/50 border border-white/5 rounded-3xl p-12 text-center space-y-4 max-w-md w-full">
+            <h2 className="text-primary text-xs font-black uppercase tracking-[0.2em]">Game Core Active</h2>
+            <h1 className="text-4xl font-black italic uppercase italic leading-tight">
+              {activeGameState.situation}
+            </h1>
+            <div className="pt-8">
+              <p className="text-xs font-bold text-muted-foreground uppercase">
+                Predictions temporarily disabled for diagnostic check.
+              </p>
             </div>
-          )}
-
-          <div className="lg:hidden">
-            <Leaderboard currentUserRank={stats.rank} currentPlayId={game.currentPlayId} />
           </div>
         </div>
-
-        <aside className="hidden lg:block w-96 shrink-0">
-          <Leaderboard currentUserRank={stats.rank} currentPlayId={game.currentPlayId} />
-        </aside>
       </div>
-
-      <footer className="lg:hidden fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-xl border-t border-white/5 p-4 z-50">
-        <div className="flex items-center justify-around gap-4 max-w-lg mx-auto">
-          <div className="flex items-center gap-2">
-            <Trophy className="w-4 h-4 text-primary" />
-            <span className="text-[10px] font-black uppercase text-primary">Group: {gameId}</span>
-          </div>
-          {isAdmin && (
-            <Button size="sm" variant="outline" className="text-[10px]" onClick={() => router.push(`/admin/${gameId}`)}>ADMIN</Button>
-          )}
-        </div>
-      </footer>
     </main>
   );
 }
