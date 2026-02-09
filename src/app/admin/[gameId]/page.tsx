@@ -117,7 +117,7 @@ export default function AdminPage() {
   };
 
   return (
-    <main className="min-h-screen bg-background p-6">
+    <main className="min-h-screen bg-background p-6 pb-32">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <Button variant="ghost" onClick={() => router.push(`/game/${gameId}`)}>
@@ -259,6 +259,18 @@ export default function AdminPage() {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      {/* Floating Action Button */}
+      <div className="fixed bottom-8 right-8 z-50">
+        <Button 
+          onClick={() => updateStatus('PREDICTING')}
+          className="w-16 h-16 rounded-full shadow-2xl glow-primary transition-transform hover:scale-110 active:scale-95 border-2 border-white/20"
+          size="icon"
+          title="Publish Next Play"
+        >
+          <Play className="w-8 h-8 fill-current" />
+        </Button>
       </div>
     </main>
   );
