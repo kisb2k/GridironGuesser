@@ -6,7 +6,7 @@ import { useGameState } from "@/hooks/useGameState";
 import { useUser } from "@/firebase";
 import { StatsBar } from "@/components/game/StatsBar";
 import { SyncControl } from "@/components/game/SyncControl";
-import { Settings, ArrowLeft, Volume2, Loader2, AlertTriangle, Info, Menu, Lock, Play, Zap } from "lucide-react";
+import { Settings, ArrowLeft, Volume2, Loader2, AlertTriangle, Info, Menu, Lock, Play, Zap, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
 import { announcerVoice } from "@/ai/flows/announcer-flow";
@@ -150,19 +150,20 @@ export default function GamePage() {
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center gap-6 py-4">
-          <div className="bg-card/50 border border-white/5 rounded-3xl p-8 md:p-12 text-center space-y-4 max-w-xl w-full relative overflow-hidden">
+          <div className="bg-card/50 border border-white/5 rounded-3xl p-8 md:p-12 text-center space-y-4 max-w-xl w-full relative overflow-hidden shadow-2xl">
             <div className={cn(
-              "absolute top-0 left-0 w-full h-1.5 transition-colors duration-500",
+              "absolute top-0 left-0 w-full h-2 transition-colors duration-700",
               activePlayState === 'PREDICTING' ? "bg-primary" : 
-              activePlayState === 'LOCKDOWN' ? "bg-destructive" : 
-              "bg-secondary"
+              activePlayState === 'LOCKDOWN' ? "bg-destructive animate-pulse" : 
+              activePlayState === 'RESOLVING' ? "bg-secondary" :
+              "bg-muted"
             )} />
             
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-2 mb-6">
                {activePlayState === 'PREDICTING' && (
                  <div className="flex items-center gap-2 text-primary animate-pulse">
                    <Play className="w-4 h-4 fill-current" />
-                   <span className="text-xs font-black uppercase tracking-widest">Live: Taking Snaps</span>
+                   <span className="text-xs font-black uppercase tracking-widest">Live Feed: Awaiting Snap</span>
                  </div>
                )}
                {activePlayState === 'LOCKDOWN' && (
@@ -172,46 +173,87 @@ export default function GamePage() {
                  </div>
                )}
                {activePlayState === 'RESOLVING' && (
-                 <div className="flex items-center gap-2 text-secondary">
+                 <div className="flex items-center gap-2 text-secondary animate-bounce">
                    <Zap className="w-4 h-4 fill-current" />
-                   <span className="text-xs font-black uppercase tracking-widest">Revealing Result</span>
+                   <span className="text-xs font-black uppercase tracking-widest">Play Result Incoming</span>
+                 </div>
+               )}
+               {activePlayState === 'COMPLETED' && (
+                 <div className="flex items-center gap-2 text-muted-foreground">
+                   <Trophy className="w-4 h-4" />
+                   <span className="text-xs font-black uppercase tracking-widest">Game on Standby</span>
                  </div>
                )}
             </div>
 
-            <h1 className="text-3xl md:text-5xl font-black italic uppercase leading-tight mt-4">
-              {activeGameState.situation}
-            </h1>
-            
-            <div className="pt-8 md:pt-12 space-y-4">
-              <div className="bg-primary/10 rounded-xl p-4 flex items-start gap-3 text-left border border-primary/10">
-                <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="text-[10px] font-black uppercase text-primary mb-1">Broadcast Mode</h4>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase leading-tight">
-                    Follow the game live. Sync your delay in settings to match your TV broadcast.
-                  </p>
+            {activePlayState === 'RESOLVING' && activeGameState.lastResult ? (
+              <div className="space-y-6 animate-in zoom-in duration-500">
+                <div className="inline-block px-4 py-1 bg-secondary text-background rounded-full text-[10px] font-black uppercase tracking-widest">
+                  Official Result
+                </div>
+                <h1 className="text-4xl md:text-6xl font-black italic uppercase leading-tight text-secondary">
+                  {activeGameState.lastResult.outcome === 'TD' ? 'TOUCHDOWN!' : 
+                   activeGameState.lastResult.outcome === 'SACK' ? 'SACKED!' :
+                   activeGameState.lastResult.outcome === 'FIRST_DOWN' ? 'FIRST DOWN!' : 
+                   'PLAY COMPLETE'}
+                </h1>
+                <p className="text-xl font-bold italic opacity-80">
+                  {activeGameState.lastResult.description}
+                </p>
+                <div className="pt-4 flex justify-center gap-4">
+                  <div className="bg-secondary/10 px-6 py-2 rounded-xl border border-secondary/20">
+                    <span className="block text-[8px] font-black uppercase opacity-50">Play Type</span>
+                    <span className="font-black italic">{activeGameState.lastResult.type}</span>
+                  </div>
+                  <div className="bg-secondary/10 px-6 py-2 rounded-xl border border-secondary/20">
+                    <span className="block text-[8px] font-black uppercase opacity-50">Gain</span>
+                    <span className="font-black italic">{activeGameState.lastResult.yards} YDS</span>
+                  </div>
                 </div>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/5 rounded-xl p-4 border border-white/5">
-                  <span className="block text-[8px] font-black text-muted-foreground uppercase mb-1">Status</span>
-                  <span className={cn(
-                    "text-[10px] md:text-xs font-black uppercase",
-                    activePlayState === 'PREDICTING' ? "text-primary" : "text-foreground"
-                  )}>
-                    {activePlayState === 'PREDICTING' ? 'READY' : activePlayState}
-                  </span>
+            ) : (
+              <>
+                <h1 className="text-3xl md:text-5xl font-black italic uppercase leading-tight mt-4">
+                  {activeGameState.situation}
+                </h1>
+                
+                <div className="pt-8 md:pt-12 space-y-4">
+                  <div className="bg-primary/10 rounded-xl p-4 flex items-start gap-3 text-left border border-primary/10">
+                    <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-[10px] font-black uppercase text-primary mb-1">Status Update</h4>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase leading-tight">
+                        {activePlayState === 'PREDICTING' ? 'Broadcast Mode: Admin is setting the stage. Predictions will open shortly.' :
+                         activePlayState === 'LOCKDOWN' ? 'Lockdown: The ball is in play! Sync your broadcast to watch it live.' :
+                         'Standing by for the next big play sequence.'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white/5 rounded-xl p-4 border border-white/5">
+                      <span className="block text-[8px] font-black text-muted-foreground uppercase mb-1">State</span>
+                      <span className={cn(
+                        "text-[10px] md:text-xs font-black uppercase",
+                        activePlayState === 'PREDICTING' ? "text-primary" : 
+                        activePlayState === 'LOCKDOWN' ? "text-destructive" :
+                        "text-foreground"
+                      )}>
+                        {activePlayState === 'PREDICTING' ? 'OPEN' : 
+                         activePlayState === 'LOCKDOWN' ? 'LOCKED' : 
+                         activePlayState}
+                      </span>
+                    </div>
+                    <div className="bg-white/5 rounded-xl p-4 border border-white/5">
+                      <span className="block text-[8px] font-black text-muted-foreground uppercase mb-1">Play Ref</span>
+                      <span className="text-[10px] md:text-xs font-bold uppercase tabular-nums">
+                        {activeGameState.currentPlayId.slice(-4)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="bg-white/5 rounded-xl p-4 border border-white/5">
-                  <span className="block text-[8px] font-black text-muted-foreground uppercase mb-1">Play ID</span>
-                  <span className="text-[10px] md:text-xs font-bold uppercase tabular-nums">
-                    {activeGameState.currentPlayId.slice(-4)}
-                  </span>
-                </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </div>
       </div>

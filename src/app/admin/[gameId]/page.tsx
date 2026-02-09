@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { PlayType, OutcomeType } from "@/lib/types";
-import { ArrowLeft, Send, Lock, Zap, Trash2, Loader2, Play, Square, RefreshCcw } from "lucide-react";
+import { ArrowLeft, Send, Lock, Zap, Trash2, Loader2, Play, Square, RefreshCcw, Activity } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -122,17 +122,27 @@ export default function AdminPage() {
           <Button variant="ghost" onClick={() => router.push(`/game/${gameId}`)}>
             <ArrowLeft className="w-4 h-4 mr-2" /> EXIT ADMIN
           </Button>
-          <h1 className="text-xl font-black uppercase italic">Command Center: {gameId}</h1>
-          <Button variant="destructive" size="sm" onClick={endGame}>
+          <div className="flex items-center gap-2">
+            <Activity className="w-5 h-5 text-primary" />
+            <h1 className="text-xl font-black uppercase italic tracking-tighter">Command Center: {gameId}</h1>
+          </div>
+          <Button variant="destructive" size="sm" onClick={endGame} title="Delete Session">
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
           {/* Main Flow Control */}
-          <Card className="bg-card/50 border-primary/20 shadow-xl overflow-hidden">
-            <div className="bg-primary/10 px-6 py-2 border-b border-primary/20">
+          <Card className="bg-card/50 border-primary/20 shadow-xl overflow-hidden relative">
+             <div className={cn(
+                "absolute top-0 left-0 w-full h-1",
+                game.status === 'PREDICTING' ? 'bg-primary' : 
+                game.status === 'LOCKDOWN' ? 'bg-destructive' :
+                game.status === 'RESOLVING' ? 'bg-secondary' : 'bg-muted'
+             )} />
+            <div className="bg-primary/5 px-6 py-2 border-b border-primary/20 flex justify-between items-center">
               <span className="text-[10px] font-black uppercase tracking-widest text-primary">Live Game Flow</span>
+              <span className="text-[10px] font-black uppercase px-2 py-0.5 bg-black/40 rounded border border-white/5">{game.status}</span>
             </div>
             <CardContent className="p-6 grid grid-cols-2 gap-4">
               <Button 
@@ -147,9 +157,8 @@ export default function AdminPage() {
                 variant={game.status === 'LOCKDOWN' ? 'default' : 'secondary'}
                 onClick={() => updateStatus('LOCKDOWN')}
                 className="h-24 flex-col font-black italic text-lg transition-all hover:scale-105"
-                disabled={game.status === 'PREDICTING' && false} 
               >
-                <Square className="w-8 h-8 mb-2 fill-current" />
+                <Lock className="w-8 h-8 mb-2" />
                 STOP PLAY
               </Button>
               <Button 
@@ -180,7 +189,7 @@ export default function AdminPage() {
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase opacity-50">Play Type</label>
                  <Select value={lastPlayType} onValueChange={(v) => setLastPlayType(v as PlayType)}>
-                    <SelectTrigger className="bg-black/20 border-white/10"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="bg-black/20 border-white/10 h-12 font-bold"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="RUN">RUN</SelectItem>
                       <SelectItem value="PASS">PASS</SelectItem>
@@ -192,7 +201,7 @@ export default function AdminPage() {
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase opacity-50">Outcome</label>
                  <Select value={lastOutcome} onValueChange={(v) => setLastOutcome(v as OutcomeType)}>
-                    <SelectTrigger className="bg-black/20 border-white/10"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="bg-black/20 border-white/10 h-12 font-bold"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="NONE">NORMAL GAIN</SelectItem>
                       <SelectItem value="TD">TOUCHDOWN</SelectItem>
@@ -234,11 +243,11 @@ export default function AdminPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase opacity-50">Away Score</label>
-                    <Input type="number" value={scoreAway} onChange={e => setScoreAway(parseInt(e.target.value))} className="bg-black/20 h-12 text-center text-xl" />
+                    <Input type="number" value={scoreAway} onChange={e => setScoreAway(parseInt(e.target.value))} className="bg-black/20 h-12 text-center text-xl font-bold" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase opacity-50">Home Score</label>
-                    <Input type="number" value={scoreHome} onChange={e => setScoreHome(parseInt(e.target.value))} className="bg-black/20 h-12 text-center text-xl" />
+                    <Input type="number" value={scoreHome} onChange={e => setScoreHome(parseInt(e.target.value))} className="bg-black/20 h-12 text-center text-xl font-bold" />
                   </div>
                 </div>
                 <Button onClick={updateGameInfo} className="w-full h-12 font-black italic shadow-lg">
