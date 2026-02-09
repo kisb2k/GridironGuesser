@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { GameState, UserStats, PlayType, OutcomeType } from '@/lib/types';
 import { useFirestore, useDoc, useUser, useMemoFirebase } from '@/firebase';
-import { doc, setDoc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 
 export function useGameState(gameId?: string) {
   const firestore = useFirestore();
@@ -28,12 +28,7 @@ export function useGameState(gameId?: string) {
   
   const { data: profileData } = useDoc<any>(userProfileRef);
 
-  const predictionRef = useMemoFirebase(() => 
-    firestore && gameId && user ? doc(firestore, 'gameSessions', gameId, 'predictions', user.uid) : null
-  , [firestore, gameId, user]);
-  
-  const { data: predictionData } = useDoc<any>(predictionRef);
-
+  // Predictions disabled for diagnostics
   const game: GameState | null = useMemoFirebase(() => {
     if (!gameData) return null;
     return {
@@ -57,52 +52,12 @@ export function useGameState(gameId?: string) {
     streak: profileData?.streak || 0,
     rank: 1, 
     totalPlayers: 1,
-    prediction: (predictionData && game && predictionData.playId === game.currentPlayId) ? {
-      playType: predictionData.playType,
-      outcome: predictionData.outcome
-    } : undefined
-  }), [profileData, predictionData, game?.currentPlayId, game]);
+    prediction: undefined // Explicitly disabled
+  }), [profileData]);
 
-  useEffect(() => {
-    if (!game || !user || !stats.prediction || game.playState !== 'RESOLVING' || !game.lastResult || !userProfileRef) return;
-    
-    const resolveScoring = async () => {
-      try {
-        const snap = await getDoc(userProfileRef);
-        const currentProfile = snap.data();
-        
-        if (!currentProfile || currentProfile.lastUpdatedPlayId === game.currentPlayId) return;
-
-        const isCorrect = stats.prediction?.playType === game.lastResult?.type;
-        const newStreak = isCorrect ? (currentProfile.streak || 0) + 1 : 0;
-        const pointsGained = isCorrect ? 10 * (newStreak || 1) : 0;
-
-        updateDoc(userProfileRef, {
-          points: (currentProfile.points || 0) + pointsGained,
-          streak: newStreak,
-          lastUpdatedPlayId: game.currentPlayId
-        });
-      } catch (e) {
-        console.warn("Scoring update failed (likely offline):", e);
-      }
-    };
-
-    resolveScoring();
-  }, [game?.playState, game?.currentPlayId, user?.uid, !!stats.prediction, !!game?.lastResult, userProfileRef]);
-
+  // Scoring logic disabled while predictions are offline
   const makePrediction = (playType: PlayType, outcome?: OutcomeType) => {
-    if (!game || game.playState !== 'PREDICTING' || !predictionRef || !user) return;
-    
-    setDoc(predictionRef, {
-      userId: user.uid,
-      username: user.displayName || 'Fan',
-      playId: game.currentPlayId,
-      playType,
-      outcome: outcome || 'NONE',
-      timestamp: serverTimestamp()
-    }, { merge: true }).catch((err) => {
-      console.warn("Prediction could not be saved to DB:", err);
-    });
+    console.log("Predictions are currently disabled for this session.");
   };
 
   const updateSyncOffset = (val: number) => {

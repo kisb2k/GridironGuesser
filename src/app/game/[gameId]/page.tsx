@@ -6,7 +6,7 @@ import { useGameState } from "@/hooks/useGameState";
 import { useUser } from "@/firebase";
 import { StatsBar } from "@/components/game/StatsBar";
 import { SyncControl } from "@/components/game/SyncControl";
-import { Settings, ArrowLeft, Volume2, Loader2, AlertTriangle } from "lucide-react";
+import { Settings, ArrowLeft, Volume2, Loader2, AlertTriangle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
 import { announcerVoice } from "@/ai/flows/announcer-flow";
@@ -114,15 +114,34 @@ export default function GamePage() {
         </aside>
 
         <div className="flex-1 flex flex-col items-center justify-center gap-6">
-          <div className="bg-card/50 border border-white/5 rounded-3xl p-12 text-center space-y-4 max-w-md w-full">
-            <h2 className="text-primary text-xs font-black uppercase tracking-[0.2em]">Game Core Active</h2>
+          <div className="bg-card/50 border border-white/5 rounded-3xl p-12 text-center space-y-4 max-w-md w-full relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-primary/20" />
+            <h2 className="text-primary text-xs font-black uppercase tracking-[0.2em]">Game Feed Active</h2>
             <h1 className="text-4xl font-black italic uppercase italic leading-tight">
               {activeGameState.situation}
             </h1>
-            <div className="pt-8">
-              <p className="text-xs font-bold text-muted-foreground uppercase">
-                Predictions temporarily disabled for diagnostic check.
-              </p>
+            
+            <div className="pt-12 space-y-4">
+              <div className="bg-primary/10 rounded-xl p-4 flex items-start gap-3 text-left">
+                <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-[10px] font-black uppercase text-primary mb-1">Observation Mode</h4>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase leading-tight">
+                    Interactive predictions are temporarily offline while we optimize the sync feed. You can still watch the live situation and listen to the announcer.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 opacity-50">
+                <div className="bg-white/5 rounded-xl p-4">
+                  <span className="block text-[8px] font-black text-muted-foreground uppercase">Current State</span>
+                  <span className="text-xs font-bold uppercase">{activeGameState.playState}</span>
+                </div>
+                <div className="bg-white/5 rounded-xl p-4">
+                  <span className="block text-[8px] font-black text-muted-foreground uppercase">Play ID</span>
+                  <span className="text-xs font-bold uppercase">{activeGameState.currentPlayId}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
