@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from "react";
@@ -42,7 +41,20 @@ export default function LobbyPage() {
     if (!user || !firestore || isCreating) return;
     
     setIsCreating(true);
-    const newGameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    
+    // Sport-specific prefixes for better identification
+    const prefixes: Record<SportType, string> = {
+      FOOTBALL: 'FB',
+      CRICKET: 'CK',
+      BASEBALL: 'BB',
+      SOCCER: 'SC',
+      HOCKEY: 'HK'
+    };
+    
+    const prefix = prefixes[selectedSport];
+    const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const newGameId = `${prefix}${randomPart}`;
+    
     const gameRef = doc(firestore, "gameSessions", newGameId);
     
     const gameData = {
