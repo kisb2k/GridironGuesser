@@ -8,7 +8,7 @@ import { doc, setDoc, collection, query, where, updateDoc } from "firebase/fires
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Plus, Users, ArrowRight, Loader2, Activity, History, Settings, ExternalLink, Power, Trophy } from "lucide-react";
+import { Plus, Users, ArrowRight, Loader2, Activity, History, Settings, Trash2, Power } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -71,6 +71,18 @@ export default function LobbyPage() {
         errorEmitter.emit('permission-error', permissionError);
         setIsCreating(false);
       });
+  };
+
+  const endGame = (gameId: string) => {
+    if (!firestore) return;
+    const gameRef = doc(firestore, "gameSessions", gameId);
+    updateDoc(gameRef, { status: 'COMPLETED' }).catch(async (err) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: gameRef.path,
+        operation: 'update',
+        requestResourceData: { status: 'COMPLETED' }
+      }));
+    });
   };
 
   const joinGame = () => {
@@ -140,15 +152,17 @@ export default function LobbyPage() {
               <div className="flex items-center justify-between px-2">
                 <div className="flex items-center gap-2">
                   <Activity className="w-4 h-4 text-primary" />
-                  <h3 className="text-xs font-black uppercase tracking-widest">Active Controls</h3>
+                  <h3 className="text-xs font-black uppercase tracking-widest">
+                    {showHistory ? "Historical Log" : "Active Controls"}
+                  </h3>
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => setShowHistory(!showHistory)} className="text-[10px] font-black uppercase">
-                  <History className="w-3 h-3 mr-1" /> {showHistory ? "HIDE HISTORY" : "VIEW HISTORY"}
+                  <History className="w-3 h-3 mr-1" /> {showHistory ? "VIEW ACTIVE" : "VIEW HISTORY"}
                 </Button>
               </div>
 
               <div className="space-y-3">
-                {activeGames.map((game) => (
+                {(showHistory ? historicalGames : activeGames).map((game) => (
                   <Card key={game.id} className="bg-card/30 border-primary/20 hover:bg-card/50 transition-colors">
                     <div className="p-4 flex items-center justify-between">
                       <div className="space-y-1">
@@ -158,12 +172,24 @@ export default function LobbyPage() {
                         </div>
                         <p className="text-[10px] font-bold text-muted-foreground uppercase">{game.situation}</p>
                       </div>
-                      <Button size="sm" className="h-8 font-black text-[10px] italic" onClick={() => router.push(`/admin/${game.id}`)}>
-                        <Settings className="w-3.5 h-3.5 mr-1" /> MANAGE
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        {!showHistory && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => endGame(game.id)}>
+                            <Power className="w-4 h-4" />
+                          </Button>
+                        )}
+                        <Button size="sm" className="h-8 font-black text-[10px] italic" onClick={() => router.push(`/admin/${game.id}`)}>
+                          <Settings className="w-3.5 h-3.5 mr-1" /> MANAGE
+                        </Button>
+                      </div>
                     </div>
                   </Card>
                 ))}
+                {(showHistory ? historicalGames : activeGames).length === 0 && (
+                  <div className="text-center p-8 border-2 border-dashed border-white/5 rounded-2xl">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase">No sessions found</p>
+                  </div>
+                )}
               </div>
             </div>
           )}

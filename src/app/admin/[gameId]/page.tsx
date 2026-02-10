@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { SportType, PlayType, OutcomeType, ControlMode } from "@/lib/types";
-import { ArrowLeft, Send, Lock, Zap, Trash2, Loader2, Play, Activity, Power, Clock, Radio } from "lucide-react";
+import { ArrowLeft, Send, Lock, Zap, Trash2, Loader2, Play, Activity, Power, Clock, Radio, PowerOff } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -76,6 +76,10 @@ export default function AdminPage() {
     updateDoc(gameRef, update).catch(async (err) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({ path: gameRef.path, operation: 'update', requestResourceData: update }));
     });
+
+    if (status === 'COMPLETED') {
+        router.push('/lobby');
+    }
   };
 
   const updateGameInfo = () => {
@@ -112,8 +116,14 @@ export default function AdminPage() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
+          {/* Main Flow Control */}
           <Card className="bg-card/50 border-primary/20 shadow-xl overflow-hidden relative">
-            <div className={cn("absolute top-0 left-0 w-full h-1", game.status === 'PREDICTING' ? 'bg-primary' : 'bg-destructive')} />
+            <div className={cn(
+                "absolute top-0 left-0 w-full h-1", 
+                game.status === 'PREDICTING' ? 'bg-primary' : 
+                game.status === 'LOCKDOWN' ? 'bg-destructive' :
+                game.status === 'RESOLVING' ? 'bg-secondary' : 'bg-muted'
+            )} />
             <CardHeader className="flex flex-row items-center justify-between">
               <span className="text-[10px] font-black uppercase tracking-widest text-primary">Status: {game.status}</span>
               <div className="flex items-center space-x-2">
@@ -134,6 +144,7 @@ export default function AdminPage() {
             </CardContent>
           </Card>
 
+          {/* Preset Controls */}
           <Card className="bg-card/50 border-white/5">
             <CardHeader><CardTitle className="text-sm font-black uppercase">Result Presets</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -158,6 +169,7 @@ export default function AdminPage() {
             </CardContent>
           </Card>
 
+          {/* Broadcast Info Dashboard */}
           <Card className="bg-card/50 border-white/5 md:col-span-2">
             <CardHeader><CardTitle className="text-sm font-black uppercase">Broadcast Dashboard</CardTitle></CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-6">
@@ -182,9 +194,14 @@ export default function AdminPage() {
                     <Input type="number" value={scoreHome} onChange={e => setScoreHome(parseInt(e.target.value))} className="bg-black/20 h-12 text-center font-bold" />
                   </div>
                 </div>
-                <Button onClick={updateGameInfo} className="w-full h-12 font-black italic shadow-lg">
-                   <Send className="w-4 h-4 mr-2" /> PUSH UPDATES
-                </Button>
+                <div className="grid grid-cols-2 gap-4">
+                    <Button onClick={updateGameInfo} className="h-12 font-black italic shadow-lg">
+                       <Send className="w-4 h-4 mr-2" /> PUSH UPDATES
+                    </Button>
+                    <Button variant="destructive" onClick={() => updateStatus('COMPLETED')} className="h-12 font-black italic border-2 border-white/10">
+                       <PowerOff className="w-4 h-4 mr-2" /> END SESSION
+                    </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
