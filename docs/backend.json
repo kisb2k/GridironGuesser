@@ -21,7 +21,9 @@
       "description": "A live game instance managed by an admin.",
       "properties": {
         "adminUid": { "type": "string" },
+        "sport": { "type": "string", "enum": ["FOOTBALL", "CRICKET", "BASEBALL", "HOCKEY", "SOCCER"] },
         "status": { "type": "string", "enum": ["PREDICTING", "LOCKDOWN", "RESOLVING", "COMPLETED"] },
+        "controlMode": { "type": "string", "enum": ["MANUAL", "LIVE"] },
         "situation": { "type": "string" },
         "scoreAway": { "type": "number" },
         "scoreHome": { "type": "number" },

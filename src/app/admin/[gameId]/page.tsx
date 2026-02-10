@@ -8,12 +8,14 @@ import { doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { PlayType, OutcomeType } from "@/lib/types";
-import { ArrowLeft, Send, Lock, Zap, Trash2, Loader2, Play, RefreshCcw, Activity, Power } from "lucide-react";
+import { SportType, PlayType, OutcomeType, ControlMode } from "@/lib/types";
+import { ArrowLeft, Send, Lock, Zap, Trash2, Loader2, Play, Activity, Power, Clock, Radio } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 export default function AdminPage() {
   const { gameId } = useParams();
@@ -31,8 +33,9 @@ export default function AdminPage() {
   const [scoreAway, setScoreAway] = useState(0);
   const [scoreHome, setScoreHome] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState("");
-  const [lastPlayType, setLastPlayType] = useState<PlayType>("RUN");
-  const [lastOutcome, setLastOutcome] = useState<OutcomeType>("NONE");
+  const [lastPlayType, setLastPlayType] = useState<string>("");
+  const [lastOutcome, setLastOutcome] = useState<string>("");
+  const [controlMode, setControlMode] = useState<ControlMode>("MANUAL");
 
   useEffect(() => {
     if (game) {
@@ -40,23 +43,20 @@ export default function AdminPage() {
       setScoreAway(game.scoreAway || 0);
       setScoreHome(game.scoreHome || 0);
       setTimeRemaining(game.timeRemaining || "");
+      setControlMode(game.controlMode || "MANUAL");
+      
+      // Default selections based on sport
+      if (!lastPlayType) {
+        if (game.sport === 'FOOTBALL') setLastPlayType('RUN');
+        if (game.sport === 'CRICKET') setLastPlayType('RUNS');
+        if (game.sport === 'BASEBALL') setLastPlayType('IN_PLAY');
+        if (game.sport === 'SOCCER' || game.sport === 'HOCKEY') setLastPlayType('INTERVAL_CLEAN');
+      }
     }
   }, [game]);
 
-  if (loading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <Loader2 className="w-8 h-8 text-primary animate-spin" />
-    </div>
-  );
-
-  if (!game || (game.adminUid !== user?.uid)) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="text-center p-8 space-y-4">
-        <h1 className="text-xl font-black uppercase italic">Unauthorized Access</h1>
-        <Button onClick={() => router.push(`/game/${gameId}`)}>BACK TO GAME</Button>
-      </div>
-    </div>
-  );
+  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
+  if (!game || (game.adminUid !== user?.uid)) return <div className="min-h-screen bg-background flex items-center justify-center">Unauthorized</div>;
 
   const updateStatus = (status: string) => {
     if (!gameRef) return;
@@ -69,206 +69,129 @@ export default function AdminPage() {
       update.lastResult = {
         type: lastPlayType,
         outcome: lastOutcome,
-        description: `${lastPlayType} resulted in ${lastOutcome.replace(/_/g, ' ')}`,
-        yards: Math.floor(Math.random() * 20)
+        description: `Resolution: ${lastPlayType} resulted in ${lastOutcome || 'N/A'}`,
       };
     }
     
     updateDoc(gameRef, update).catch(async (err) => {
-      const permissionError = new FirestorePermissionError({
-        path: gameRef.path,
-        operation: 'update',
-        requestResourceData: update
-      });
-      errorEmitter.emit('permission-error', permissionError);
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: gameRef.path, operation: 'update', requestResourceData: update }));
     });
   };
 
   const updateGameInfo = () => {
     if (!gameRef) return;
-    const update = {
-      situation,
-      scoreAway,
-      scoreHome,
-      timeRemaining
-    };
+    const update = { situation, scoreAway, scoreHome, timeRemaining, controlMode };
     updateDoc(gameRef, update).catch(async (err) => {
-      const permissionError = new FirestorePermissionError({
-        path: gameRef.path,
-        operation: 'update',
-        requestResourceData: update
-      });
-      errorEmitter.emit('permission-error', permissionError);
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: gameRef.path, operation: 'update', requestResourceData: update }));
     });
   };
 
-  const deleteSession = async () => {
-    if (!gameRef) return;
-    if (confirm("Permanently delete this session record?")) {
-      deleteDoc(gameRef).catch(async (err) => {
-        const permissionError = new FirestorePermissionError({
-          path: gameRef.path,
-          operation: 'delete'
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      });
-      router.push('/lobby');
-    }
-  };
+  const sportOptions = {
+    FOOTBALL: { plays: ['RUN', 'PASS', 'FG', 'PUNT'], outcomes: ['TD', 'FIRST_DOWN', 'SACK', 'INCOMPLETE', 'NONE'] },
+    CRICKET: { plays: ['DOT', 'RUNS', 'WICKET', 'BOUNDARY'], outcomes: ['WICKET', 'SIX', 'FOUR', 'SINGLE'] },
+    BASEBALL: { plays: ['STRIKE', 'BALL', 'IN_PLAY'], outcomes: ['HOME_RUN', 'STRIKEOUT', 'WALK', 'HIT'] },
+    SOCCER: { plays: ['INTERVAL_GOAL', 'INTERVAL_CLEAN'], outcomes: ['GOAL', 'SAVE', 'PENALTY'] },
+    HOCKEY: { plays: ['INTERVAL_GOAL', 'INTERVAL_CLEAN'], outcomes: ['GOAL', 'SAVE', 'PENALTY'] },
+  }[game.sport as SportType] || { plays: [], outcomes: [] };
 
   return (
     <main className="min-h-screen bg-background p-6 pb-32">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => router.push(`/game/${gameId}`)}>
-            <ArrowLeft className="w-4 h-4 mr-2" /> EXIT ADMIN
+          <Button variant="ghost" onClick={() => router.push(`/lobby`)}>
+            <ArrowLeft className="w-4 h-4 mr-2" /> LOBBY
           </Button>
           <div className="flex items-center gap-2">
             <Activity className="w-5 h-5 text-primary" />
-            <h1 className="text-xl font-black uppercase italic tracking-tighter">Command Center: {gameId}</h1>
+            <h1 className="text-xl font-black uppercase italic tracking-tighter">{game.sport} Command Center</h1>
           </div>
-          <Button variant="ghost" size="sm" onClick={deleteSession} title="Delete Record">
-            <Trash2 className="w-4 h-4 text-destructive opacity-50 hover:opacity-100" />
-          </Button>
+          <div className="flex items-center gap-2 bg-card/50 px-3 py-1.5 rounded-full border border-white/5">
+             <Radio className={cn("w-3 h-3", controlMode === 'LIVE' ? "text-primary animate-pulse" : "text-muted-foreground")} />
+             <span className="text-[10px] font-black uppercase">{controlMode} MODE</span>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Main Flow Control */}
           <Card className="bg-card/50 border-primary/20 shadow-xl overflow-hidden relative">
-             <div className={cn(
-                "absolute top-0 left-0 w-full h-1",
-                game.status === 'PREDICTING' ? 'bg-primary' : 
-                game.status === 'LOCKDOWN' ? 'bg-destructive' :
-                game.status === 'RESOLVING' ? 'bg-secondary' : 'bg-muted'
-             )} />
-            <div className="bg-primary/5 px-6 py-2 border-b border-primary/20 flex justify-between items-center">
-              <span className="text-[10px] font-black uppercase tracking-widest text-primary">Live Game Flow</span>
-              <span className="text-[10px] font-black uppercase px-2 py-0.5 bg-black/40 rounded border border-white/5">{game.status}</span>
-            </div>
+            <div className={cn("absolute top-0 left-0 w-full h-1", game.status === 'PREDICTING' ? 'bg-primary' : 'bg-destructive')} />
+            <CardHeader className="flex flex-row items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-widest text-primary">Status: {game.status}</span>
+              <div className="flex items-center space-x-2">
+                <Switch id="live-mode" checked={controlMode === 'LIVE'} onCheckedChange={(v) => setControlMode(v ? 'LIVE' : 'MANUAL')} />
+                <Label htmlFor="live-mode" className="text-[10px] font-bold uppercase">Live Sync</Label>
+              </div>
+            </CardHeader>
             <CardContent className="p-6 grid grid-cols-2 gap-4">
-              <Button 
-                variant={game.status === 'PREDICTING' ? 'default' : 'secondary'}
-                onClick={() => updateStatus('PREDICTING')}
-                className="h-24 flex-col font-black italic text-lg transition-all hover:scale-105"
-              >
-                <Play className="w-8 h-8 mb-2 fill-current" />
-                START PLAY
+              <Button variant={game.status === 'PREDICTING' ? 'default' : 'secondary'} onClick={() => updateStatus('PREDICTING')} className="h-24 flex-col font-black italic text-lg">
+                <Play className="w-8 h-8 mb-2 fill-current" /> {game.sport === 'SOCCER' || game.sport === 'HOCKEY' ? 'START INTERVAL' : 'START PLAY'}
               </Button>
-              <Button 
-                variant={game.status === 'LOCKDOWN' ? 'default' : 'secondary'}
-                onClick={() => updateStatus('LOCKDOWN')}
-                className="h-24 flex-col font-black italic text-lg transition-all hover:scale-105"
-              >
-                <Lock className="w-8 h-8 mb-2" />
-                STOP PLAY
+              <Button variant={game.status === 'LOCKDOWN' ? 'default' : 'secondary'} onClick={() => updateStatus('LOCKDOWN')} className="h-24 flex-col font-black italic text-lg">
+                <Lock className="w-8 h-8 mb-2" /> LOCK
               </Button>
-              <Button 
-                variant={game.status === 'RESOLVING' ? 'default' : 'secondary'}
-                onClick={() => updateStatus('RESOLVING')}
-                className="h-20 flex-col font-black italic col-span-2 border-primary/20"
-              >
-                <Zap className="w-6 h-6 mb-1 fill-current" />
-                RESOLVE & REVEAL RESULT
-              </Button>
-              <Button 
-                variant="destructive"
-                onClick={() => updateStatus('COMPLETED')}
-                className="h-12 font-black italic col-span-2 shadow-lg"
-              >
-                <Power className="w-4 h-4 mr-2" />
-                END SESSION & ARCHIVE
+              <Button variant={game.status === 'RESOLVING' ? 'default' : 'secondary'} onClick={() => updateStatus('RESOLVING')} className="h-20 flex-col font-black italic col-span-2 border-primary/20">
+                <Zap className="w-6 h-6 mb-1 fill-current" /> RESOLVE & REVEAL
               </Button>
             </CardContent>
           </Card>
 
-          {/* Result Selection */}
           <Card className="bg-card/50 border-white/5">
-            <CardHeader>
-              <CardTitle className="text-sm font-black uppercase">Result Presets</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-sm font-black uppercase">Result Presets</CardTitle></CardHeader>
             <CardContent className="space-y-4">
                <div className="space-y-2">
-                 <label className="text-[10px] font-black uppercase opacity-50">Play Type</label>
-                 <span className="text-[10px] font-black text-muted-foreground ml-2">REQUIRED FOR RESOLVE</span>
-                 <Select value={lastPlayType} onValueChange={(v) => setLastPlayType(v as PlayType)}>
-                    <SelectTrigger className="bg-black/20 border-white/10 h-12 font-bold"><SelectValue /></SelectTrigger>
+                 <label className="text-[10px] font-black uppercase opacity-50">Call Type</label>
+                 <Select value={lastPlayType} onValueChange={setLastPlayType}>
+                    <SelectTrigger className="bg-black/20 h-12 font-bold"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="RUN">RUN</SelectItem>
-                      <SelectItem value="PASS">PASS</SelectItem>
-                      <SelectItem value="FG">FIELD GOAL</SelectItem>
-                      <SelectItem value="PUNT">PUNT</SelectItem>
+                      {sportOptions.plays.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                     </SelectContent>
                  </Select>
                </div>
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase opacity-50">Outcome</label>
-                 <Select value={lastOutcome} onValueChange={(v) => setLastOutcome(v as OutcomeType)}>
-                    <SelectTrigger className="bg-black/20 border-white/10 h-12 font-bold"><SelectValue /></SelectTrigger>
+                 <Select value={lastOutcome} onValueChange={setLastOutcome}>
+                    <SelectTrigger className="bg-black/20 h-12 font-bold"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="NONE">NORMAL GAIN</SelectItem>
-                      <SelectItem value="TD">TOUCHDOWN</SelectItem>
-                      <SelectItem value="FIRST_DOWN">FIRST DOWN</SelectItem>
-                      <SelectItem value="SACK">SACK / TFL</SelectItem>
+                      {sportOptions.outcomes.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                     </SelectContent>
                  </Select>
                </div>
             </CardContent>
           </Card>
 
-          {/* Broadcast Data */}
           <Card className="bg-card/50 border-white/5 md:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-sm font-black uppercase">Broadcast Dashboard</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-sm font-black uppercase">Broadcast Dashboard</CardTitle></CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase opacity-50">Current Situation</label>
-                  <Input 
-                    value={situation} 
-                    onChange={e => setSituation(e.target.value)} 
-                    placeholder="e.g. 3rd & 2 at PHI 45" 
-                    className="bg-black/20 h-12 text-lg font-bold"
-                  />
+                  <label className="text-[10px] font-black uppercase opacity-50">Situation (e.g. Over 12.3 or 1st & 10)</label>
+                  <Input value={situation} onChange={e => setSituation(e.target.value)} className="bg-black/20 h-12 font-bold" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase opacity-50">Clock / Quarter</label>
-                  <Input 
-                    value={timeRemaining} 
-                    onChange={e => setTimeRemaining(e.target.value)} 
-                    placeholder="e.g. 02:45 4TH" 
-                    className="bg-black/20 h-12 text-lg font-bold"
-                  />
+                  <label className="text-[10px] font-black uppercase opacity-50">Game Clock / Period</label>
+                  <Input value={timeRemaining} onChange={e => setTimeRemaining(e.target.value)} className="bg-black/20 h-12 font-bold" />
                 </div>
               </div>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase opacity-50">Away Score</label>
-                    <Input type="number" value={scoreAway} onChange={e => setScoreAway(parseInt(e.target.value))} className="bg-black/20 h-12 text-center text-xl font-bold" />
+                    <Input type="number" value={scoreAway} onChange={e => setScoreAway(parseInt(e.target.value))} className="bg-black/20 h-12 text-center font-bold" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase opacity-50">Home Score</label>
-                    <Input type="number" value={scoreHome} onChange={e => setScoreHome(parseInt(e.target.value))} className="bg-black/20 h-12 text-center text-xl font-bold" />
+                    <Input type="number" value={scoreHome} onChange={e => setScoreHome(parseInt(e.target.value))} className="bg-black/20 h-12 text-center font-bold" />
                   </div>
                 </div>
                 <Button onClick={updateGameInfo} className="w-full h-12 font-black italic shadow-lg">
-                   <Send className="w-4 h-4 mr-2" /> PUSH UPDATES TO FANS
+                   <Send className="w-4 h-4 mr-2" /> PUSH UPDATES
                 </Button>
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
-
-      {/* Floating Action Button */}
       <div className="fixed bottom-8 right-8 z-50">
-        <Button 
-          onClick={() => updateStatus('PREDICTING')}
-          className="w-16 h-16 rounded-full shadow-2xl glow-primary transition-transform hover:scale-110 active:scale-95 border-2 border-white/20"
-          size="icon"
-          title="Publish Next Play"
-        >
+        <Button onClick={() => updateStatus('PREDICTING')} className="w-16 h-16 rounded-full shadow-2xl glow-primary border-2 border-white/20" size="icon">
           <Play className="w-8 h-8 fill-current" />
         </Button>
       </div>
