@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useFirestore, useDoc, useUser, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, updateDoc, collection } from "firebase/firestore";
+import { doc, updateDoc, collection, getDocs, query, where, increment, writeBatch } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -43,6 +43,7 @@ export default function AdminPage() {
   const [lastPlayType, setLastPlayType] = useState<string>("");
   const [lastOutcome, setLastOutcome] = useState<string>("");
   const [controlMode, setControlMode] = useState<ControlMode>("MANUAL");
+  const [isResolving, setIsResolving] = useState(false);
 
   useEffect(() => {
     if (game) {
@@ -66,7 +67,6 @@ export default function AdminPage() {
     if (!predictionsData || !game) return [];
     const usersMap = new Map();
     
-    // Track everyone who has ever predicted in this session
     predictionsData.forEach(p => {
       if (!usersMap.has(p.userId)) {
         usersMap.set(p.userId, { 
@@ -83,22 +83,60 @@ export default function AdminPage() {
     return Array.from(usersMap.values());
   }, [predictionsData, game?.currentPlayId]);
 
-  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
-  if (!game || (game.adminUid !== user?.uid)) return <div className="min-h-screen bg-background flex items-center justify-center">Unauthorized</div>;
+  const resolvePlay = async () => {
+    if (!firestore || !game || !gameRef || isResolving) return;
+    setIsResolving(true);
+
+    try {
+      const currentPredictions = predictionsData?.filter(p => p.playId === game.currentPlayId) || [];
+      const batch = writeBatch(firestore);
+
+      for (const pred of currentPredictions) {
+        const userRef = doc(firestore, 'users', pred.userId);
+        const isCorrect = pred.playType === lastPlayType && (!lastOutcome || pred.outcome === lastOutcome);
+
+        if (isCorrect) {
+          batch.update(userRef, {
+            points: increment(100),
+            streak: increment(1)
+          });
+        } else {
+          batch.update(userRef, {
+            streak: 0
+          });
+        }
+      }
+
+      const update = {
+        status: 'RESOLVING',
+        lastResult: {
+          type: lastPlayType,
+          outcome: lastOutcome,
+          description: `Resolution: ${lastPlayType} resulted in ${lastOutcome || 'N/A'}`,
+        }
+      };
+
+      batch.update(gameRef, update);
+      await batch.commit();
+    } catch (err: any) {
+      console.error("Resolution failed:", err);
+    } finally {
+      setIsResolving(false);
+    }
+  };
 
   const updateStatus = (status: string) => {
     if (!gameRef) return;
+    
+    if (status === 'RESOLVING') {
+      resolvePlay();
+      return;
+    }
+
     const update: any = { status };
     if (status === 'PREDICTING') {
       update.currentPlayId = `p_${Date.now()}`;
       update.lastResult = null;
-    }
-    if (status === 'RESOLVING') {
-      update.lastResult = {
-        type: lastPlayType,
-        outcome: lastOutcome,
-        description: `Resolution: ${lastPlayType} resulted in ${lastOutcome || 'N/A'}`,
-      };
     }
     
     updateDoc(gameRef, update).catch(async (err) => {
@@ -125,6 +163,9 @@ export default function AdminPage() {
     SOCCER: { plays: ['INTERVAL_GOAL', 'INTERVAL_CLEAN'], outcomes: ['GOAL', 'SAVE', 'PENALTY'] },
     HOCKEY: { plays: ['INTERVAL_GOAL', 'INTERVAL_CLEAN'], outcomes: ['GOAL', 'SAVE', 'PENALTY'] },
   }[game.sport as SportType] || { plays: [], outcomes: [] };
+
+  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
+  if (!game || (game.adminUid !== user?.uid)) return <div className="min-h-screen bg-background flex items-center justify-center">Unauthorized</div>;
 
   return (
     <main className="min-h-screen bg-background p-6 pb-32">
@@ -168,8 +209,13 @@ export default function AdminPage() {
                   <Button variant={game.status === 'LOCKDOWN' ? 'default' : 'secondary'} onClick={() => updateStatus('LOCKDOWN')} className="h-24 flex-col font-black italic text-lg">
                     <Lock className="w-8 h-8 mb-2" /> LOCK
                   </Button>
-                  <Button variant={game.status === 'RESOLVING' ? 'default' : 'secondary'} onClick={() => updateStatus('RESOLVING')} className="h-20 flex-col font-black italic col-span-2 border-primary/20">
-                    <Zap className="w-6 h-6 mb-1 fill-current" /> RESOLVE & REVEAL
+                  <Button 
+                    variant={game.status === 'RESOLVING' ? 'default' : 'secondary'} 
+                    onClick={() => updateStatus('RESOLVING')} 
+                    disabled={isResolving}
+                    className="h-20 flex-col font-black italic col-span-2 border-primary/20"
+                  >
+                    {isResolving ? <Loader2 className="w-6 h-6 animate-spin" /> : <><Zap className="w-6 h-6 mb-1 fill-current" /> RESOLVE & REVEAL</>}
                   </Button>
                 </CardContent>
               </Card>

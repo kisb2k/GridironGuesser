@@ -1,10 +1,10 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { GameState, UserStats, PlayType, OutcomeType, SportType } from '@/lib/types';
-import { useFirestore, useDoc, useUser, useMemoFirebase } from '@/firebase';
-import { doc, setDoc, updateDoc, increment } from 'firebase/firestore';
+import { useFirestore, useDoc, useUser, useMemoFirebase, useCollection } from '@/firebase';
+import { doc, setDoc, updateDoc, increment, collection, query, orderBy } from 'firebase/firestore';
 
 export function useGameState(gameId?: string) {
   const firestore = useFirestore();
@@ -28,7 +28,19 @@ export function useGameState(gameId?: string) {
   
   const { data: profileData } = useDoc<any>(userProfileRef);
 
-  const game: GameState | null = useMemoFirebase(() => {
+  // For ranking, we need to know where we stand in this session
+  const predictionsRef = useMemoFirebase(() => 
+    firestore && gameId ? collection(firestore, 'gameSessions', gameId, 'predictions') : null
+  , [firestore, gameId]);
+  const { data: predictions } = useCollection(predictionsRef);
+
+  const playersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, "users"), orderBy("points", "desc"));
+  }, [firestore]);
+  const { data: allPlayers } = useCollection(playersQuery);
+
+  const game: GameState | null = useMemo(() => {
     if (!gameData) return null;
     return {
       id: gameId,
@@ -45,13 +57,22 @@ export function useGameState(gameId?: string) {
     };
   }, [gameData, gameId]);
 
-  const stats: UserStats = useMemoFirebase(() => ({
-    points: profileData?.points || 0,
-    streak: profileData?.streak || 0,
-    rank: 1, 
-    totalPlayers: 1,
-    prediction: undefined
-  }), [profileData]);
+  const stats: UserStats = useMemo(() => {
+    const sessionUserIds = predictions ? Array.from(new Set(predictions.map(p => p.userId))) : [];
+    const sessionRankedPlayers = allPlayers 
+      ? allPlayers.filter(p => sessionUserIds.includes(p.id)).sort((a, b) => (b.points || 0) - (a.points || 0))
+      : [];
+    
+    const myRank = user ? sessionRankedPlayers.findIndex(p => p.id === user.uid) + 1 : 1;
+
+    return {
+      points: profileData?.points || 0,
+      streak: profileData?.streak || 0,
+      rank: myRank || 1, 
+      totalPlayers: sessionUserIds.length || 1,
+      prediction: undefined
+    };
+  }, [profileData, allPlayers, predictions, user]);
 
   const makePrediction = (playType: string, outcome?: string) => {
     if (!firestore || !user || !gameId || !game?.currentPlayId) return;

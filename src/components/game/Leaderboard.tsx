@@ -2,9 +2,10 @@
 "use client"
 
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, limit, orderBy } from "firebase/firestore";
+import { collection, query, limit, orderBy, where } from "firebase/firestore";
 import { Trophy, Medal, Users, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMemo } from "react";
 
 interface LeaderboardProps {
   gameId: string;
@@ -13,24 +14,46 @@ interface LeaderboardProps {
 export function Leaderboard({ gameId }: LeaderboardProps) {
   const firestore = useFirestore();
 
-  // Fetching global top players as a proxy for the leaderboard
-  // In a production app, we would fetch session-specific scores
-  const topPlayersQuery = useMemoFirebase(() => {
+  // Listen to predictions for this game to identify participants
+  const predictionsRef = useMemoFirebase(() => 
+    firestore && gameId ? collection(firestore, 'gameSessions', gameId, 'predictions') : null
+  , [firestore, gameId]);
+
+  const { data: predictions } = useCollection(predictionsRef);
+
+  // Get unique user IDs of players in this session
+  const sessionUserIds = useMemo(() => {
+    if (!predictions) return [];
+    return Array.from(new Set(predictions.map(p => p.userId)));
+  }, [predictions]);
+
+  // Fetch all users - in a prototype, we'll fetch global users and filter
+  // For production, you'd use a more targeted query
+  const playersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(
       collection(firestore, "users"),
-      orderBy("points", "desc"),
-      limit(10)
+      orderBy("points", "desc")
     );
   }, [firestore]);
 
-  const { data: players, isLoading } = useCollection(topPlayersQuery);
+  const { data: allPlayers, isLoading } = useCollection(playersQuery);
+
+  // Filter to only show players who have participated in this session
+  const sessionPlayers = useMemo(() => {
+    if (!allPlayers) return [];
+    if (sessionUserIds.length === 0) return [];
+    
+    return allPlayers
+      .filter(p => sessionUserIds.includes(p.id))
+      .sort((a, b) => (b.points || 0) - (a.points || 0));
+  }, [allPlayers, sessionUserIds]);
 
   return (
     <div className="flex flex-col gap-4 w-full">
       <div className="flex items-center gap-2 px-1">
         <Trophy className="w-4 h-4 text-primary" />
-        <h3 className="text-[10px] font-black uppercase tracking-widest text-primary">Global Leaderboard</h3>
+        <h3 className="text-[10px] font-black uppercase tracking-widest text-primary">Session Leaderboard</h3>
       </div>
       
       <div className="bg-card/30 border border-white/5 rounded-2xl overflow-hidden">
@@ -40,7 +63,7 @@ export function Leaderboard({ gameId }: LeaderboardProps) {
           </div>
         ) : (
           <div className="divide-y divide-white/5">
-            {players?.map((player, idx) => (
+            {sessionPlayers.map((player, idx) => (
               <div key={player.id} className="flex items-center justify-between p-3 hover:bg-white/5 transition-colors">
                 <div className="flex items-center gap-3">
                   <span className={cn(
@@ -55,7 +78,7 @@ export function Leaderboard({ gameId }: LeaderboardProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-black tabular-nums">{player.points.toLocaleString()}</span>
+                  <span className="text-xs font-black tabular-nums">{(player.points || 0).toLocaleString()}</span>
                   {idx < 3 && <Medal className={cn(
                     "w-3 h-3",
                     idx === 0 ? "text-primary" : idx === 1 ? "text-slate-400" : "text-orange-400"
@@ -63,10 +86,10 @@ export function Leaderboard({ gameId }: LeaderboardProps) {
                 </div>
               </div>
             ))}
-            {(!players || players.length === 0) && (
+            {sessionPlayers.length === 0 && !isLoading && (
               <div className="p-8 text-center">
                 <Users className="w-8 h-8 text-muted mx-auto mb-2 opacity-20" />
-                <p className="text-[10px] font-black text-muted-foreground uppercase">No data found</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase">Waiting for plays...</p>
               </div>
             )}
           </div>
