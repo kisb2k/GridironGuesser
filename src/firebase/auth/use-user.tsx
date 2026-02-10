@@ -1,11 +1,8 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useFirestore } from '../provider';
-import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { errorEmitter } from '../error-emitter';
-import { FirestorePermissionError } from '../errors';
+import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 
 export interface AppUser {
   uid: string;
@@ -54,7 +51,7 @@ export function useUser() {
     const cleanUsername = username.trim().toLowerCase();
     const userRef = doc(firestore, "users", cleanUsername);
     
-    // Default Admin Seed - Only attempt if it's the specific admin username
+    // Default Admin Seed
     if (cleanUsername === 'admin' && pass === 'password') {
       try {
         const adminSnap = await getDoc(userRef);
@@ -68,7 +65,7 @@ export function useUser() {
           });
         }
       } catch (e) {
-        console.warn("Admin seeding skipped due to permissions. This is normal if account already exists or rules are strict.");
+        console.warn("Admin seeding skipped.");
       }
     }
 
@@ -93,9 +90,6 @@ export function useUser() {
       localStorage.setItem('gg_user_id', cleanUsername);
       setUser(appUser);
     } catch (err: any) {
-      if (err.code === 'permission-denied') {
-        throw new Error("Database access denied. Please ensure your Firebase rules allow reading the users collection.");
-      }
       throw err;
     }
   };
@@ -131,9 +125,6 @@ export function useUser() {
       localStorage.setItem('gg_user_id', username);
       setUser(appUser);
     } catch (err: any) {
-      if (err.code === 'permission-denied') {
-        throw new Error("Registration failed: Database permission denied.");
-      }
       throw err;
     }
   };
@@ -156,12 +147,20 @@ export function useUser() {
       points: 0,
       streak: 0,
       isGuest: true
-    }).catch(err => {
-      console.warn("Guest profile could not be saved to DB, continuing with local session:", err);
     });
 
     localStorage.setItem('gg_user_id', guestId);
     setUser(appUser);
+  };
+
+  const updateDisplayName = async (newName: string) => {
+    if (!user || !firestore) return;
+    const cleanName = newName.trim();
+    if (!cleanName) return;
+
+    const userRef = doc(firestore, "users", user.uid);
+    await updateDoc(userRef, { displayName: cleanName });
+    setUser({ ...user, displayName: cleanName });
   };
 
   const logout = async () => {
@@ -169,5 +168,5 @@ export function useUser() {
     setUser(null);
   };
 
-  return { user, loading, login, register, guestLogin, logout };
+  return { user, loading, login, register, guestLogin, logout, updateDisplayName };
 }

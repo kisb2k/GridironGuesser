@@ -27,6 +27,12 @@ export function BottomNav() {
       icon: LayoutGrid,
       active: pathname === '/lobby',
     },
+    {
+      label: 'Profile',
+      href: '/profile',
+      icon: User,
+      active: pathname === '/profile',
+    },
   ];
 
   if (isAdmin) {
