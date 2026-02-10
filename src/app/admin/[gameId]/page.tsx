@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { PlayType, OutcomeType } from "@/lib/types";
-import { ArrowLeft, Send, Lock, Zap, Trash2, Loader2, Play, RefreshCcw, Activity } from "lucide-react";
+import { ArrowLeft, Send, Lock, Zap, Trash2, Loader2, Play, RefreshCcw, Activity, Power } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -102,9 +102,9 @@ export default function AdminPage() {
     });
   };
 
-  const endGame = async () => {
+  const deleteSession = async () => {
     if (!gameRef) return;
-    if (confirm("End this session?")) {
+    if (confirm("Permanently delete this session record?")) {
       deleteDoc(gameRef).catch(async (err) => {
         const permissionError = new FirestorePermissionError({
           path: gameRef.path,
@@ -127,8 +127,8 @@ export default function AdminPage() {
             <Activity className="w-5 h-5 text-primary" />
             <h1 className="text-xl font-black uppercase italic tracking-tighter">Command Center: {gameId}</h1>
           </div>
-          <Button variant="destructive" size="sm" onClick={endGame} title="Delete Session">
-            <Trash2 className="w-4 h-4" />
+          <Button variant="ghost" size="sm" onClick={deleteSession} title="Delete Record">
+            <Trash2 className="w-4 h-4 text-destructive opacity-50 hover:opacity-100" />
           </Button>
         </div>
 
@@ -171,12 +171,12 @@ export default function AdminPage() {
                 RESOLVE & REVEAL RESULT
               </Button>
               <Button 
-                variant="outline"
+                variant="destructive"
                 onClick={() => updateStatus('COMPLETED')}
-                className="h-12 font-black italic col-span-2 opacity-50 hover:opacity-100"
+                className="h-12 font-black italic col-span-2 shadow-lg"
               >
-                <RefreshCcw className="w-4 h-4 mr-2" />
-                RESET TO STANDBY
+                <Power className="w-4 h-4 mr-2" />
+                END SESSION & ARCHIVE
               </Button>
             </CardContent>
           </Card>

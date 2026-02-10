@@ -4,11 +4,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { doc, setDoc, collection, query, where } from "firebase/firestore";
+import { doc, setDoc, collection, query, where, updateDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Plus, Users, ArrowRight, Loader2, Activity, History, Settings, ExternalLink } from "lucide-react";
+import { Plus, Users, ArrowRight, Loader2, Activity, History, Settings, ExternalLink, Power } from "lucide-react";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { cn } from "@/lib/utils";
@@ -65,6 +65,19 @@ export default function LobbyPage() {
     });
 
     router.push(`/game/${newGameId}`);
+  };
+
+  const endGame = (gameId: string) => {
+    if (!firestore) return;
+    const gameRef = doc(firestore, "gameSessions", gameId);
+    updateDoc(gameRef, { status: 'COMPLETED' }).catch(async (err) => {
+      const permissionError = new FirestorePermissionError({
+        path: gameRef.path,
+        operation: 'update',
+        requestResourceData: { status: 'COMPLETED' }
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    });
   };
 
   const joinGame = () => {
@@ -189,6 +202,15 @@ export default function LobbyPage() {
                           </p>
                         </div>
                         <div className="flex gap-2">
+                          <Button 
+                            variant="destructive" 
+                            size="sm" 
+                            className="h-8 w-8 p-0"
+                            onClick={() => endGame(game.id)}
+                            title="End Game"
+                          >
+                            <Power className="w-3.5 h-3.5" />
+                          </Button>
                           <Button 
                             variant="outline" 
                             size="sm" 
