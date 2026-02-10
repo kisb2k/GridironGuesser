@@ -143,7 +143,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-3 gap-6 items-start">
           <div className="lg:col-span-2 space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               {/* Main Flow Control */}
@@ -238,47 +238,49 @@ export default function AdminPage() {
             </Card>
           </div>
 
-          {/* User Roster Sidebar */}
-          <Card className="bg-card/50 border-white/5 flex flex-col h-fit">
-            <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 pb-4">
-              <div>
-                <CardTitle className="text-sm font-black uppercase">Live Roster</CardTitle>
-                <div className="flex items-center gap-1 mt-1">
-                  <Users className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-[10px] font-bold text-muted-foreground">{participants.length} PLAYING</span>
+          {/* User Roster Sidebar - Made Sticky */}
+          <aside className="lg:sticky lg:top-6 space-y-6">
+            <Card className="bg-card/50 border-white/5 flex flex-col h-fit max-h-[calc(100vh-8rem)]">
+              <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 pb-4 shrink-0">
+                <div>
+                  <CardTitle className="text-sm font-black uppercase">Live Roster</CardTitle>
+                  <div className="flex items-center gap-1 mt-1">
+                    <Users className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-[10px] font-bold text-muted-foreground">{participants.length} PLAYING</span>
+                  </div>
                 </div>
-              </div>
-              <div className="bg-primary/10 px-2 py-1 rounded text-[10px] font-black text-primary uppercase">
-                {participants.filter(p => p.hasVotedCurrent).length}/{participants.length} READY
-              </div>
-            </CardHeader>
-            <CardContent className="p-0 max-h-[600px] overflow-y-auto">
-              <div className="divide-y divide-white/5">
-                {participants.map((player) => (
-                  <div key={player.userId} className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-2 h-2 rounded-full",
-                        player.hasVotedCurrent ? "bg-primary animate-pulse" : "bg-muted"
-                      )} />
-                      <span className="text-xs font-bold uppercase">{player.username}</span>
+                <div className="bg-primary/10 px-2 py-1 rounded text-[10px] font-black text-primary uppercase">
+                  {participants.filter(p => p.hasVotedCurrent).length}/{participants.length} READY
+                </div>
+              </CardHeader>
+              <CardContent className="p-0 overflow-y-auto">
+                <div className="divide-y divide-white/5">
+                  {participants.map((player) => (
+                    <div key={player.userId} className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-2 h-2 rounded-full",
+                          player.hasVotedCurrent ? "bg-primary animate-pulse" : "bg-muted"
+                        )} />
+                        <span className="text-xs font-bold uppercase">{player.username}</span>
+                      </div>
+                      {player.hasVotedCurrent ? (
+                        <CheckCircle2 className="w-4 h-4 text-primary" />
+                      ) : (
+                        <Clock className="w-4 h-4 text-muted-foreground animate-pulse" />
+                      )}
                     </div>
-                    {player.hasVotedCurrent ? (
-                      <CheckCircle2 className="w-4 h-4 text-primary" />
-                    ) : (
-                      <Clock className="w-4 h-4 text-muted-foreground animate-pulse" />
-                    )}
-                  </div>
-                ))}
-                {participants.length === 0 && (
-                  <div className="p-8 text-center">
-                    <Users className="w-8 h-8 text-muted mx-auto mb-2" />
-                    <p className="text-[10px] font-black text-muted-foreground uppercase">Waiting for players...</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                  {participants.length === 0 && (
+                    <div className="p-8 text-center">
+                      <Users className="w-8 h-8 text-muted mx-auto mb-2" />
+                      <p className="text-[10px] font-black text-muted-foreground uppercase">Waiting for players...</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </aside>
         </div>
       </div>
       
