@@ -156,6 +156,9 @@ export default function AdminPage() {
     });
   };
 
+  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
+  if (!game || (game.adminUid !== user?.uid)) return <div className="min-h-screen bg-background flex items-center justify-center">Unauthorized</div>;
+
   const sportOptions = {
     FOOTBALL: { plays: ['RUN', 'PASS', 'FG', 'PUNT'], outcomes: ['TD', 'FIRST_DOWN', 'SACK', 'INCOMPLETE', 'NONE'] },
     CRICKET: { plays: ['DOT', 'RUNS', 'WICKET', 'BOUNDARY'], outcomes: ['WICKET', 'SIX', 'FOUR', 'SINGLE'] },
@@ -163,9 +166,6 @@ export default function AdminPage() {
     SOCCER: { plays: ['INTERVAL_GOAL', 'INTERVAL_CLEAN'], outcomes: ['GOAL', 'SAVE', 'PENALTY'] },
     HOCKEY: { plays: ['INTERVAL_GOAL', 'INTERVAL_CLEAN'], outcomes: ['GOAL', 'SAVE', 'PENALTY'] },
   }[game.sport as SportType] || { plays: [], outcomes: [] };
-
-  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
-  if (!game || (game.adminUid !== user?.uid)) return <div className="min-h-screen bg-background flex items-center justify-center">Unauthorized</div>;
 
   return (
     <main className="min-h-screen bg-background p-6 pb-32">
